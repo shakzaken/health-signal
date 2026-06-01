@@ -1,0 +1,29 @@
+import os
+
+from fastapi import FastAPI
+
+from api.routes import health, ingest, query
+from core.config import settings
+from rag.qdrant_client import ensure_collection, get_qdrant_client
+
+# Set LangSmith env vars at startup
+os.environ["LANGCHAIN_TRACING_V2"] = settings.langchain_tracing_v2
+os.environ["LANGSMITH_API_KEY"] = settings.langsmith_api_key
+os.environ["LANGCHAIN_PROJECT"] = settings.langsmith_project
+
+
+app = FastAPI(
+    title="HealthSignal AI Agent",
+    description="Ingestion pipeline and RAG query service",
+    version="0.1.0",
+)
+
+app.include_router(health.router)
+app.include_router(ingest.router)
+app.include_router(query.router)
+
+
+@app.on_event("startup")
+async def startup():
+    client = get_qdrant_client()
+    ensure_collection(client)

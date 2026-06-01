@@ -1,0 +1,60 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# uv
+.uv/
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Uploads / user data
+uploads/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# macOS
+.DS_Store
+**/.DS_Store
+
+# Claude Code local settings (personal, not project-wide)
+.claude/settings.local.json
+
+# Logs
+*.log
+logs/
+
+# Test / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# Alembic (keep migrations, ignore compiled cache)
+backend/alembic/versions/__pycache__/
+
+# FastEmbed model cache (downloaded at runtime)
+.fastembed_cache/
+
+# Jupyter
+.ipynb_checkpoints/
