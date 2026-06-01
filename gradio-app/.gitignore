@@ -17,6 +17,13 @@ wheels/
 # Gradio temp files
 gradio_cached_examples/
 flagged/
+.gradio/
+tmp/
+
+# Qdrant data (created when qdrant binary is run from this directory — run it from ~/qdrant/ instead)
+storage/
+snapshots/
+.qdrant-initialized
 
 # Test / coverage
 .pytest_cache/
