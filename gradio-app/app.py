@@ -1,3 +1,5 @@
+import os
+
 import httpx
 import gradio as gr
 
@@ -22,8 +24,12 @@ def upload_document(file, document_type: str, source_date: str) -> str:
         return "Please select a file to upload."
 
     try:
-        with open(file.name, "rb") as f:
-            files = {"file": (file.name.split("/")[-1], f, "application/octet-stream")}
+        # Gradio 4+ returns a filepath string; older versions returned an object with .name
+        file_path = file if isinstance(file, str) else file.name
+        filename = os.path.basename(file_path)
+
+        with open(file_path, "rb") as f:
+            files = {"file": (filename, f, "application/octet-stream")}
             data = {"document_type": document_type}
             if source_date:
                 data["source_date"] = source_date

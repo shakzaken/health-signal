@@ -28,4 +28,4 @@ class SymptomEntry(Base):
     )
     occurred_at: Mapped[date]
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True, default=None)
-    created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(UTC))
+    created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(UTC).replace(tzinfo=None))

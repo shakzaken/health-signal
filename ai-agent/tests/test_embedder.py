@@ -2,7 +2,7 @@
 
 from ingestion.embedder import Embedder
 
-VECTOR_SIZE = 384  # BAAI/bge-small-en-v1.5
+VECTOR_SIZE = 1024  # intfloat/multilingual-e5-large
 
 
 def test_embed_returns_correct_number_of_vectors(embedder):

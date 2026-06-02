@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     qdrant_port: int = 6333
     anthropic_api_key: str
     openai_api_key: str
+    openai_model: str = "gpt-4.1-nano"
     langsmith_api_key: str = ""
     langsmith_project: str = "health-signal"
     langchain_tracing_v2: str = "true"

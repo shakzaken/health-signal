@@ -24,7 +24,7 @@ class LabResult(Base):
     document_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("documents.id"))
     test_date: Mapped[date]
     lab_name: Mapped[Optional[str]] = mapped_column(nullable=True, default=None)
-    created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(UTC))
+    created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(UTC).replace(tzinfo=None))
 
 
 class LabMarker(Base):
@@ -40,4 +40,4 @@ class LabMarker(Base):
     status: Mapped[Optional[MarkerStatus]] = mapped_column(
         SAEnum(MarkerStatus, native_enum=False), nullable=True, default=None
     )
-    created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(UTC))
+    created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(UTC).replace(tzinfo=None))

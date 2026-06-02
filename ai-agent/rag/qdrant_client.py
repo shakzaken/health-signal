@@ -4,7 +4,7 @@ from qdrant_client.models import Distance, VectorParams
 from core.config import settings
 
 COLLECTION_NAME = "health_documents"
-VECTOR_SIZE = 384  # BAAI/bge-small-en-v1.5
+VECTOR_SIZE = 1024  # intfloat/multilingual-e5-large
 
 
 def get_qdrant_client() -> QdrantClient:

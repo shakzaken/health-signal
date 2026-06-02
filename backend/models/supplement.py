@@ -21,4 +21,4 @@ class SupplementEntry(Base):
     started_at: Mapped[Optional[date]] = mapped_column(nullable=True, default=None)
     stopped_at: Mapped[Optional[date]] = mapped_column(nullable=True, default=None)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True, default=None)
-    created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(UTC))
+    created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(UTC).replace(tzinfo=None))
