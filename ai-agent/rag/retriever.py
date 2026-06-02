@@ -31,9 +31,10 @@ def retrieve(
             FieldCondition(key="document_type", match=MatchValue(value=document_type))
         )
 
-    results = client.search(
+    # query_points replaces the deprecated client.search() in qdrant-client >= 1.7
+    response = client.query_points(
         collection_name=COLLECTION_NAME,
-        query_vector=query_vector,
+        query=query_vector,
         query_filter=Filter(must=must_conditions),
         limit=top_k,
         with_payload=True,
@@ -49,5 +50,5 @@ def retrieve(
             "chunk_index": hit.payload.get("chunk_index"),
             "score": hit.score,
         }
-        for hit in results
+        for hit in response.points
     ]

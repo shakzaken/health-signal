@@ -26,6 +26,9 @@ env/
 # Uploads / user data
 uploads/
 
+# Local test data (not for version control)
+test-data/
+
 # IDE
 .vscode/
 .idea/

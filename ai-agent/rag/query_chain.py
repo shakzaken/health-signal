@@ -1,4 +1,4 @@
-from langchain_anthropic import ChatAnthropic
+from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, SystemMessage
 from langsmith import traceable
 
@@ -6,9 +6,9 @@ from core.config import settings
 from rag.qdrant_client import get_qdrant_client
 from rag.retriever import retrieve
 
-llm = ChatAnthropic(
-    model="claude-3-5-sonnet-20241022",
-    api_key=settings.anthropic_api_key,
+llm = ChatOpenAI(
+    model="gpt-4o-mini",
+    api_key=settings.openai_api_key,
 )
 
 SYSTEM_PROMPT = """You are a personal health assistant helping a user understand their health data.

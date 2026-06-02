@@ -4,7 +4,7 @@ from pathlib import Path
 
 import httpx
 from fastapi import UploadFile
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from core.config import settings
 from core.logger import get_logger
@@ -29,7 +29,7 @@ class DocumentService:
         storage_path.mkdir(parents=True, exist_ok=True)
 
         unique_filename = f"{uuid.uuid4()}_{file.filename}"
-        file_path = storage_path / unique_filename
+        file_path = storage_path.resolve() / unique_filename  # absolute path so ai-agent can locate it
 
         content = await file.read()
         file_path.write_bytes(content)
@@ -64,5 +64,10 @@ class DocumentService:
             async with httpx.AsyncClient(timeout=300.0) as client:
                 response = await client.post(f"{settings.ai_agent_url}/ingest", json=payload)
                 logger.info(f"Ingestion response — status={response.status_code} body={response.text}")
+                result = response.json()
+                new_status = ProcessingStatus.completed if result.get("success") else ProcessingStatus.failed
+                await self.repo.update_status(document.id, new_status)
+                logger.info(f"Document status updated — id={document.id} status={new_status}")
         except Exception as e:
             logger.error(f"Ingestion trigger failed — {e}")
+            await self.repo.update_status(document.id, ProcessingStatus.failed)
