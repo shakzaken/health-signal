@@ -7,8 +7,11 @@ from fastapi import UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.config import settings
+from core.logger import get_logger
 from models.document import Document, DocumentType, ProcessingStatus
 from repositories.document_repository import DocumentRepository
+
+logger = get_logger(__name__)
 
 
 class DocumentService:
@@ -30,6 +33,7 @@ class DocumentService:
 
         content = await file.read()
         file_path.write_bytes(content)
+        logger.info(f"File saved — path={file_path} size={len(content)} bytes")
 
         # Create DB record
         document = Document(
@@ -40,8 +44,9 @@ class DocumentService:
             processing_status=ProcessingStatus.pending,
         )
         document = await self.repo.create(document)
+        logger.info(f"Document record created — id={document.id}")
 
-        # Trigger ingestion in ai-agent (fire and forget errors are caught)
+        # Trigger ingestion in ai-agent
         await self._trigger_ingestion(document)
 
         return document
@@ -52,10 +57,12 @@ class DocumentService:
             "file_path": document.file_path,
             "document_type": document.document_type.value,
             "source_date": document.source_date.isoformat() if document.source_date else None,
+            "filename": document.filename,
         }
+        logger.info(f"Triggering ingestion — document_id={document.id} ai_agent_url={settings.ai_agent_url}")
         try:
             async with httpx.AsyncClient(timeout=300.0) as client:
-                await client.post(f"{settings.ai_agent_url}/ingest", json=payload)
-        except Exception:
-            # Ingestion is async — status will reflect failure via ai-agent callback
-            pass
+                response = await client.post(f"{settings.ai_agent_url}/ingest", json=payload)
+                logger.info(f"Ingestion response — status={response.status_code} body={response.text}")
+        except Exception as e:
+            logger.error(f"Ingestion trigger failed — {e}")

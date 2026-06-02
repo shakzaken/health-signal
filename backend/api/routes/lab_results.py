@@ -26,6 +26,33 @@ async def list_lab_results(session: AsyncSession = Depends(get_session)):
     ]
 
 
+# NOTE: specific routes must come before parameterised routes
+@router.get("/markers/{marker_name}/history", response_model=MarkerHistoryResponse)
+async def get_marker_history(
+    marker_name: str,
+    session: AsyncSession = Depends(get_session),
+):
+    repo = LabResultRepository(session)
+    markers = await repo.get_marker_history(marker_name)
+    return MarkerHistoryResponse(
+        name=marker_name,
+        history=[
+            LabMarkerResponse(
+                id=m.id,
+                lab_result_id=m.lab_result_id,
+                name=m.name,
+                value=m.value,
+                unit=m.unit,
+                reference_low=m.reference_low,
+                reference_high=m.reference_high,
+                status=m.status,
+                created_at=m.created_at,
+            )
+            for m in markers
+        ],
+    )
+
+
 @router.get("/{result_id}", response_model=LabResultResponse)
 async def get_lab_result(
     result_id: uuid.UUID,
@@ -58,28 +85,3 @@ async def get_lab_result(
         ],
     )
 
-
-@router.get("/markers/{marker_name}/history", response_model=MarkerHistoryResponse)
-async def get_marker_history(
-    marker_name: str,
-    session: AsyncSession = Depends(get_session),
-):
-    repo = LabResultRepository(session)
-    markers = await repo.get_marker_history(marker_name)
-    return MarkerHistoryResponse(
-        name=marker_name,
-        history=[
-            LabMarkerResponse(
-                id=m.id,
-                lab_result_id=m.lab_result_id,
-                name=m.name,
-                value=m.value,
-                unit=m.unit,
-                reference_low=m.reference_low,
-                reference_high=m.reference_high,
-                status=m.status,
-                created_at=m.created_at,
-            )
-            for m in markers
-        ],
-    )

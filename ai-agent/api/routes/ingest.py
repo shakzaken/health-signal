@@ -1,11 +1,12 @@
-from datetime import date
 from typing import Optional
 
 from fastapi import APIRouter
 from pydantic import BaseModel
 
+from core.logger import get_logger
 from ingestion.pipeline import run_ingestion
 
+logger = get_logger(__name__)
 router = APIRouter(prefix="/ingest", tags=["ingest"])
 
 
@@ -26,6 +27,7 @@ class IngestResponse(BaseModel):
 
 @router.post("", response_model=IngestResponse)
 async def ingest_document(request: IngestRequest):
+    logger.info(f"Ingest request — document_id={request.document_id} file={request.file_path}")
     result = await run_ingestion(
         document_id=request.document_id,
         file_path=request.file_path,
@@ -33,6 +35,8 @@ async def ingest_document(request: IngestRequest):
         source_date=request.source_date,
         filename=request.filename or request.file_path.split("/")[-1],
     )
+    if not result["success"]:
+        logger.error(f"Ingest failed — document_id={request.document_id} error={result.get('error')}")
     return IngestResponse(
         success=result["success"],
         document_id=request.document_id,
