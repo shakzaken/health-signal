@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Any, Optional
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
@@ -24,6 +24,7 @@ class IngestResponse(BaseModel):
     document_id: str
     chunks_stored: int = 0
     error: Optional[str] = None
+    lab_result: Optional[dict[str, Any]] = None
 
 
 @router.post("", response_model=IngestResponse)
@@ -46,4 +47,5 @@ async def ingest_document(
         document_id=request.document_id,
         chunks_stored=result.get("chunks_stored", 0),
         error=result.get("error"),
+        lab_result=result.get("lab_result"),
     )
