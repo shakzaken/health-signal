@@ -1,8 +1,8 @@
 import uuid
 from typing import Optional
 
-from sqlmodel.ext.asyncio.session import AsyncSession
-from sqlmodel import select
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from models.lab_result import LabMarker, LabResult
 
@@ -24,29 +24,29 @@ class LabResultRepository:
         return markers
 
     async def get_by_id(self, result_id: uuid.UUID) -> Optional[LabResult]:
-        result = await self.session.exec(
+        result = await self.session.execute(
             select(LabResult).where(LabResult.id == result_id)
         )
-        return result.first()
+        return result.scalar_one_or_none()
 
     async def get_markers_for_result(self, result_id: uuid.UUID) -> list[LabMarker]:
-        result = await self.session.exec(
+        result = await self.session.execute(
             select(LabMarker).where(LabMarker.lab_result_id == result_id)
         )
-        return list(result.all())
+        return list(result.scalars().all())
 
     async def list_all(self) -> list[LabResult]:
-        result = await self.session.exec(
+        result = await self.session.execute(
             select(LabResult).order_by(LabResult.test_date.desc())
         )
-        return list(result.all())
+        return list(result.scalars().all())
 
     async def get_marker_history(self, marker_name: str) -> list[LabMarker]:
         """Return all historical values for a specific marker, ordered by test date."""
-        result = await self.session.exec(
-            select(LabMarker, LabResult)
+        result = await self.session.execute(
+            select(LabMarker)
             .join(LabResult, LabMarker.lab_result_id == LabResult.id)
             .where(LabMarker.name == marker_name)
             .order_by(LabResult.test_date.asc())
         )
-        return [row[0] for row in result.all()]
+        return list(result.scalars().all())

@@ -1,7 +1,7 @@
 from datetime import date
 from typing import Optional
 
-from sqlmodel.ext.asyncio.session import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from models.timeline import TimelineEvent
 from repositories.timeline_repository import TimelineRepository

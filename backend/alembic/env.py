@@ -1,23 +1,23 @@
+import os
+import sys
 from logging.config import fileConfig
 
 from sqlalchemy import engine_from_config, pool
-from sqlmodel import SQLModel
 
 from alembic import context
 
-# Import all models so Alembic can detect them
-import sys
-import os
+# Ensure the backend package is on the path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-import db.base  # noqa: F401 — registers all models
+# Import Base (which also imports all models) so Alembic can detect tables
+from db.base import Base  # noqa: E402
 
 config = context.config
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-target_metadata = SQLModel.metadata
+target_metadata = Base.metadata
 
 
 def run_migrations_offline() -> None:

@@ -4,7 +4,7 @@ from pathlib import Path
 
 import httpx
 from fastapi import UploadFile
-from sqlmodel.ext.asyncio.session import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.config import settings
 from core.logger import get_logger

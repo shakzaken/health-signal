@@ -1,8 +1,8 @@
 import uuid
 from typing import Optional
 
-from sqlmodel.ext.asyncio.session import AsyncSession
-from sqlmodel import select
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from models.document import Document, ProcessingStatus
 
@@ -18,14 +18,16 @@ class DocumentRepository:
         return document
 
     async def get_by_id(self, document_id: uuid.UUID) -> Optional[Document]:
-        result = await self.session.exec(
+        result = await self.session.execute(
             select(Document).where(Document.id == document_id)
         )
-        return result.first()
+        return result.scalar_one_or_none()
 
     async def list_all(self) -> list[Document]:
-        result = await self.session.exec(select(Document).order_by(Document.uploaded_at.desc()))
-        return list(result.all())
+        result = await self.session.execute(
+            select(Document).order_by(Document.uploaded_at.desc())
+        )
+        return list(result.scalars().all())
 
     async def update_status(
         self,

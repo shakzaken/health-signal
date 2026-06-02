@@ -1,8 +1,8 @@
 from datetime import date
 from typing import Optional
 
-from sqlmodel.ext.asyncio.session import AsyncSession
-from sqlmodel import select
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from models.symptom import SymptomEntry
 
@@ -28,5 +28,5 @@ class SymptomRepository:
         if to_date:
             query = query.where(SymptomEntry.occurred_at <= to_date)
         query = query.order_by(SymptomEntry.occurred_at.desc())
-        result = await self.session.exec(query)
-        return list(result.all())
+        result = await self.session.execute(query)
+        return list(result.scalars().all())

@@ -1,5 +1,5 @@
-from sqlmodel.ext.asyncio.session import AsyncSession
-from sqlmodel import select
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from models.supplement import SupplementEntry
 
@@ -16,15 +16,15 @@ class SupplementRepository:
 
     async def list_active(self) -> list[SupplementEntry]:
         """Return supplements that have not been stopped."""
-        result = await self.session.exec(
+        result = await self.session.execute(
             select(SupplementEntry)
-            .where(SupplementEntry.stopped_at == None)  # noqa: E711
+            .where(SupplementEntry.stopped_at.is_(None))
             .order_by(SupplementEntry.started_at.desc())
         )
-        return list(result.all())
+        return list(result.scalars().all())
 
     async def list_all(self) -> list[SupplementEntry]:
-        result = await self.session.exec(
+        result = await self.session.execute(
             select(SupplementEntry).order_by(SupplementEntry.started_at.desc())
         )
-        return list(result.all())
+        return list(result.scalars().all())

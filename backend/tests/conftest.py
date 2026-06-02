@@ -7,19 +7,24 @@ The ai-agent HTTP call is mocked at the httpx level.
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-from sqlmodel import SQLModel
-from sqlmodel.ext.asyncio.session import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 
-# Import all models so SQLModel.metadata knows about all tables
-import models.document  # noqa: F401
-import models.lab_result  # noqa: F401
-import models.symptom  # noqa: F401
-import models.supplement  # noqa: F401
-import models.timeline  # noqa: F401
+from db.base import Base  # registers all models via its bottom-level imports
 
 # SQLite in-memory — fast, no external dependency needed for tests
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
+
+
+async def create_test_tables(engine: AsyncEngine) -> None:
+    """Create all tables against the given engine. Used only in tests."""
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+
+async def drop_test_tables(engine: AsyncEngine) -> None:
+    """Drop all tables. Used only in tests."""
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
 
 
 @pytest.fixture(scope="session")
@@ -33,8 +38,7 @@ def test_engine():
 @pytest.fixture
 async def db_session(test_engine):
     """Create all tables fresh for each test, yield a session, then drop everything."""
-    async with test_engine.begin() as conn:
-        await conn.run_sync(SQLModel.metadata.create_all)
+    await create_test_tables(test_engine)
 
     session_factory = async_sessionmaker(
         bind=test_engine,
@@ -44,22 +48,14 @@ async def db_session(test_engine):
     async with session_factory() as session:
         yield session
 
-    async with test_engine.begin() as conn:
-        await conn.run_sync(SQLModel.metadata.drop_all)
+    await drop_test_tables(test_engine)
 
 
 @pytest.fixture
 def client(db_session, mocker):
-    """
-    TestClient with:
-    - DB session overridden to use in-memory SQLite
-    - create_db_and_tables patched to a no-op (tables already created above)
-    """
+    """TestClient with the DB session overridden to use in-memory SQLite."""
     from db.session import get_session
     from main import app
-
-    # Skip the real DB table creation in lifespan
-    mocker.patch("main.create_db_and_tables", return_value=None)
 
     async def override_get_session():
         yield db_session

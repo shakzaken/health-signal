@@ -3,7 +3,7 @@ from datetime import date
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile, File
-from sqlmodel.ext.asyncio.session import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.logger import get_logger
 from db.session import get_session
