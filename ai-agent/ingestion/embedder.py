@@ -1,6 +1,7 @@
 from fastembed import TextEmbedding
 
-MODEL_NAME = "BAAI/bge-small-en-v1.5"
+MODEL_NAME = "intfloat/multilingual-e5-large"
+VECTOR_SIZE = 1024
 
 
 class Embedder:
@@ -16,7 +17,8 @@ class Embedder:
 
     def _get_model(self) -> TextEmbedding:
         if self._model is None:
-            self._model = TextEmbedding(model_name=self._model_name)
+            # mean pooling is the correct pooling strategy for multilingual-e5-large
+            self._model = TextEmbedding(model_name=self._model_name, pooling="mean")
         return self._model
 
     def embed(self, chunks: list[str]) -> list[list[float]]:

@@ -9,8 +9,13 @@ from alembic import context
 # Ensure the backend package is on the path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-# Import Base (which also imports all models) so Alembic can detect tables
+# Import Base and all models so Alembic can detect tables during autogenerate
 from db.base import Base  # noqa: E402
+import models.document  # noqa: F401, E402
+import models.lab_result  # noqa: F401, E402
+import models.supplement  # noqa: F401, E402
+import models.symptom  # noqa: F401, E402
+import models.timeline  # noqa: F401, E402
 
 config = context.config
 

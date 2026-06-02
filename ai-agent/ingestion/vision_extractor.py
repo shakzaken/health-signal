@@ -48,7 +48,7 @@ class VisionExtractor:
 
         client = self._get_client()
         response = await client.chat.completions.create(
-            model="gpt-4o-mini",
+            model=settings.openai_model,
             messages=[{"role": "user", "content": content}],
             max_tokens=4096,
         )

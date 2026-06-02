@@ -56,11 +56,44 @@ async def test_answer_returns_answer_and_sources(chain):
 
 
 @pytest.mark.asyncio
-async def test_answer_calls_retriever_with_question(chain, mock_retriever):
-    await chain.answer("What is my cholesterol?")
+async def test_answer_calls_retriever_with_question(chain, mock_retriever, mock_llm):
+    # Hebrew question — no translation needed, retriever gets the original question
+    mock_llm.ainvoke.return_value = MagicMock(content="Your hemoglobin is within the normal range.")
+    await chain.answer("מה רמת ההמוגלובין שלי?")
     mock_retriever.retrieve.assert_called_once()
     call_args = mock_retriever.retrieve.call_args
-    assert "cholesterol" in call_args.args[0].lower()
+    assert "המוגלובין" in call_args.args[0]
+
+
+@pytest.mark.asyncio
+async def test_answer_translates_english_query_to_hebrew(mock_retriever, mock_llm):
+    """English questions should be translated to Hebrew before retrieval."""
+    translated = "מה רמת הכולסטרול שלי?"
+    # First ainvoke = translation, second = answer
+    mock_llm.ainvoke.side_effect = [
+        MagicMock(content=translated),
+        MagicMock(content="Your cholesterol is within range."),
+    ]
+    chain = QueryChain(retriever=mock_retriever, llm=mock_llm)
+
+    await chain.answer("What is my cholesterol?")
+
+    retrieval_query = mock_retriever.retrieve.call_args.args[0]
+    assert retrieval_query == translated
+
+
+@pytest.mark.asyncio
+async def test_answer_hebrew_query_skips_translation(mock_retriever, mock_llm):
+    """Hebrew questions go directly to retrieval without a translation call."""
+    mock_llm.ainvoke.return_value = MagicMock(content="תשובה בעברית.")
+    chain = QueryChain(retriever=mock_retriever, llm=mock_llm)
+
+    await chain.answer("מה אני אוכל?")
+
+    # Only one LLM call — the final answer, no translation call
+    assert mock_llm.ainvoke.call_count == 1
+    retrieval_query = mock_retriever.retrieve.call_args.args[0]
+    assert "אוכל" in retrieval_query
 
 
 @pytest.mark.asyncio
@@ -81,12 +114,15 @@ async def test_answer_passes_user_id_to_retriever(chain, mock_retriever):
 async def test_answer_returns_no_data_message_when_no_chunks(mock_llm):
     retriever = MagicMock(spec=Retriever)
     retriever.retrieve.return_value = []  # nothing in Qdrant
+    # English question → translation call happens, then no chunks → no answer call
+    mock_llm.ainvoke.return_value = MagicMock(content="מה התוצאות שלי?")
     chain = QueryChain(retriever=retriever, llm=mock_llm)
 
     result = await chain.answer("What are my results?")
     assert result["sources"] == []
     assert "couldn't find" in result["answer"].lower()
-    mock_llm.ainvoke.assert_not_called()  # LLM should NOT be called when no context
+    # Only the translation call should have been made — not the final answer call
+    assert mock_llm.ainvoke.call_count == 1
 
 
 @pytest.mark.asyncio

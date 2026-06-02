@@ -48,7 +48,7 @@ def get_ingestion_pipeline() -> IngestionPipeline:
 
 def get_query_chain() -> QueryChain:
     client = get_qdrant_client()
-    llm = ChatOpenAI(model="gpt-4o-mini", api_key=settings.openai_api_key)
+    llm = ChatOpenAI(model=settings.openai_model, api_key=settings.openai_api_key)
     return QueryChain(
         retriever=Retriever(client=client, embedder=get_embedder()),
         llm=llm,

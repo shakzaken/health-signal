@@ -34,7 +34,7 @@ class Document(Base):
     file_path: Mapped[str]
     document_type: Mapped[DocumentType] = mapped_column(SAEnum(DocumentType, native_enum=False))
     source_date: Mapped[Optional[date]] = mapped_column(nullable=True, default=None)
-    uploaded_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(UTC))
+    uploaded_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(UTC).replace(tzinfo=None))
     processing_status: Mapped[ProcessingStatus] = mapped_column(
         SAEnum(ProcessingStatus, native_enum=False),
         default=ProcessingStatus.pending,
