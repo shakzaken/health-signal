@@ -1,8 +1,11 @@
 import uuid
-from datetime import date, datetime
 from enum import Enum
 
-from sqlmodel import Field, SQLModel
+from datetime import UTC, date, datetime
+from sqlalchemy import Enum as SAEnum
+from sqlalchemy.orm import Mapped, mapped_column
+
+from db.base import Base
 
 
 class EventType(str, Enum):
@@ -13,13 +16,13 @@ class EventType(str, Enum):
     note = "note"
 
 
-class TimelineEvent(SQLModel, table=True):
+class TimelineEvent(Base):
     __tablename__ = "timeline_events"
 
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    event_type: EventType
-    reference_id: uuid.UUID
-    reference_table: str
-    event_date: date
-    summary: str
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    event_type: Mapped[EventType] = mapped_column(SAEnum(EventType, native_enum=False))
+    reference_id: Mapped[uuid.UUID]
+    reference_table: Mapped[str]
+    event_date: Mapped[date]
+    summary: Mapped[str]
+    created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(UTC))

@@ -1,9 +1,12 @@
 import uuid
-from datetime import date, datetime
 from enum import Enum
 from typing import Optional
 
-from sqlmodel import Field, SQLModel
+from datetime import UTC, date, datetime
+from sqlalchemy import Enum as SAEnum, Float, ForeignKey
+from sqlalchemy.orm import Mapped, mapped_column
+
+from db.base import Base
 
 
 class MarkerStatus(str, Enum):
@@ -14,25 +17,27 @@ class MarkerStatus(str, Enum):
     borderline_high = "borderline_high"
 
 
-class LabResult(SQLModel, table=True):
+class LabResult(Base):
     __tablename__ = "lab_results"
 
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    document_id: uuid.UUID = Field(foreign_key="documents.id")
-    test_date: date
-    lab_name: Optional[str] = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    document_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("documents.id"))
+    test_date: Mapped[date]
+    lab_name: Mapped[Optional[str]] = mapped_column(nullable=True, default=None)
+    created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(UTC))
 
 
-class LabMarker(SQLModel, table=True):
+class LabMarker(Base):
     __tablename__ = "lab_markers"
 
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    lab_result_id: uuid.UUID = Field(foreign_key="lab_results.id")
-    name: str
-    value: float
-    unit: str
-    reference_low: Optional[float] = None
-    reference_high: Optional[float] = None
-    status: Optional[MarkerStatus] = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    lab_result_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("lab_results.id"))
+    name: Mapped[str]
+    value: Mapped[float] = mapped_column(Float)
+    unit: Mapped[str]
+    reference_low: Mapped[Optional[float]] = mapped_column(Float, nullable=True, default=None)
+    reference_high: Mapped[Optional[float]] = mapped_column(Float, nullable=True, default=None)
+    status: Mapped[Optional[MarkerStatus]] = mapped_column(
+        SAEnum(MarkerStatus, native_enum=False), nullable=True, default=None
+    )
+    created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(UTC))

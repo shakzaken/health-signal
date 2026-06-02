@@ -1,9 +1,12 @@
 import uuid
-from datetime import date, datetime
 from enum import Enum
 from typing import Optional
 
-from sqlmodel import Field, SQLModel
+from datetime import UTC, date, datetime
+from sqlalchemy import Enum as SAEnum, Text
+from sqlalchemy.orm import Mapped, mapped_column
+
+from db.base import Base
 
 
 class DocumentType(str, Enum):
@@ -23,14 +26,17 @@ class ProcessingStatus(str, Enum):
     failed = "failed"
 
 
-class Document(SQLModel, table=True):
+class Document(Base):
     __tablename__ = "documents"
 
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    filename: str
-    file_path: str
-    document_type: DocumentType
-    source_date: Optional[date] = None
-    uploaded_at: datetime = Field(default_factory=datetime.utcnow)
-    processing_status: ProcessingStatus = Field(default=ProcessingStatus.pending)
-    raw_text: Optional[str] = None
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    filename: Mapped[str]
+    file_path: Mapped[str]
+    document_type: Mapped[DocumentType] = mapped_column(SAEnum(DocumentType, native_enum=False))
+    source_date: Mapped[Optional[date]] = mapped_column(nullable=True, default=None)
+    uploaded_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(UTC))
+    processing_status: Mapped[ProcessingStatus] = mapped_column(
+        SAEnum(ProcessingStatus, native_enum=False),
+        default=ProcessingStatus.pending,
+    )
+    raw_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True, default=None)

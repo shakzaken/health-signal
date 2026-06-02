@@ -1,9 +1,12 @@
 import uuid
-from datetime import date, datetime
 from enum import Enum
 from typing import Optional
 
-from sqlmodel import Field, SQLModel
+from datetime import UTC, date, datetime
+from sqlalchemy import Enum as SAEnum, ForeignKey, Text
+from sqlalchemy.orm import Mapped, mapped_column
+
+from db.base import Base
 
 
 class SymptomSeverity(str, Enum):
@@ -12,13 +15,17 @@ class SymptomSeverity(str, Enum):
     severe = "severe"
 
 
-class SymptomEntry(SQLModel, table=True):
+class SymptomEntry(Base):
     __tablename__ = "symptom_entries"
 
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    document_id: Optional[uuid.UUID] = Field(default=None, foreign_key="documents.id")
-    symptom_name: str
-    severity: Optional[SymptomSeverity] = None
-    occurred_at: date
-    notes: Optional[str] = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    document_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("documents.id"), nullable=True, default=None
+    )
+    symptom_name: Mapped[str]
+    severity: Mapped[Optional[SymptomSeverity]] = mapped_column(
+        SAEnum(SymptomSeverity, native_enum=False), nullable=True, default=None
+    )
+    occurred_at: Mapped[date]
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True, default=None)
+    created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(UTC))

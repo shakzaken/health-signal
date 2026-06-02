@@ -11,7 +11,7 @@ This document defines the preferred engineering conventions for this project. Th
 ### Architecture
 
 * Use **Pydantic** for application models, request models, and response models.
-* Use **object-oriented style** for **services** and **repositories**.
+* Use **object-oriented style** for **services**, **repositories**, and **AI/ML pipeline classes** across all services.
 * Use **repositories** for interacting with the database.
 * Use **services** for interacting with infrastructure components such as **cache** and **queues** (for example Redis or RabbitMQ), and for coordinating business flows when needed.
 * Keep **FastAPI routes** as regular functions, not class-based routes.
@@ -19,6 +19,22 @@ This document defines the preferred engineering conventions for this project. Th
 * Prefer **async libraries** for database, queue, HTTP, and storage integrations when building FastAPI services.
 * Prefer `async def` for FastAPI route handlers, service methods, and repository methods that perform I/O.
 * If a synchronous library must be used, document the reason clearly and keep the blocking boundary explicit.
+
+### Backend service (`backend/`)
+
+* Use **SQLAlchemy** (with asyncpg) directly for database access — do not use SQLModel as an ORM.
+* Define database tables using SQLAlchemy's `mapped_column` / `DeclarativeBase` style.
+* Use **Pydantic** models separately for API request and response schemas — keep DB models and API schemas in separate files.
+* Schema is managed exclusively by **Alembic** migrations. Never call `create_all()` or any equivalent at application startup.
+* Use **asyncpg** as the async PostgreSQL driver via SQLAlchemy's async engine.
+* Use **psycopg2** only for Alembic migrations (sync context required).
+
+### AI agent service (`ai-agent/`)
+
+* Use **object-oriented style** for all pipeline and RAG components — every logical component must be a class, not a module-level function.
+* Examples: `IngestionPipeline`, `DocumentParser`, `Chunker`, `Embedder`, `Retriever`, `QueryChain`, `QdrantWriter`.
+* Inject dependencies explicitly through constructors — avoid module-level singletons except for expensive shared resources (e.g. the embedding model).
+* Expose shared singletons via FastAPI dependency providers in `api/deps.py`.
 
 ### Recommended structure
 
@@ -47,7 +63,7 @@ This document defines the preferred engineering conventions for this project. Th
 
 * Use **uv** as the Python package manager for Python services.
 * Keep a separate Python environment per service.
-* Use `api-service/.venv` for the API service and `worker-service/.venv` for the worker service.
+* Use `backend/.venv` for the backend service and `ai-agent/.venv` for the AI agent service.
 * Keep Python dependencies scoped to each service's own `pyproject.toml`.
 * Do not rely on a shared root Python virtual environment across services.
 
