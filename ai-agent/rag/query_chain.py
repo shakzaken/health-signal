@@ -1,15 +1,8 @@
-from langchain_openai import ChatOpenAI
+from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
 from langsmith import traceable
 
-from core.config import settings
-from rag.qdrant_client import get_qdrant_client
-from rag.retriever import retrieve
-
-llm = ChatOpenAI(
-    model="gpt-4o-mini",
-    api_key=settings.openai_api_key,
-)
+from rag.retriever import Retriever
 
 SYSTEM_PROMPT = """You are a personal health assistant helping a user understand their health data.
 
@@ -26,43 +19,54 @@ Guidelines:
 """
 
 
-@traceable(name="rag_query_chain")
-async def answer_query(
-    question: str,
-    user_id: str = "default",
-    document_type: str | None = None,
-) -> dict:
+class QueryChain:
     """
-    RAG query chain:
-    1. Retrieve relevant chunks from Qdrant (filtered by user)
-    2. Build context from retrieved chunks
-    3. Call Claude with context + question
-    4. Return answer + sources
+    RAG query chain: retrieve relevant chunks from Qdrant, then generate
+    an answer with the LLM using those chunks as context.
     """
-    client = get_qdrant_client()
-    chunks = retrieve(client, question, user_id=user_id, document_type=document_type)
 
-    if not chunks:
+    def __init__(self, retriever: Retriever, llm: BaseChatModel) -> None:
+        self._retriever = retriever
+        self._llm = llm
+
+    @traceable(name="rag_query_chain")
+    async def answer(
+        self,
+        question: str,
+        user_id: str = "default",
+        document_type: str | None = None,
+    ) -> dict:
+        """
+        1. Retrieve relevant chunks from Qdrant (filtered by user).
+        2. Build context string from retrieved chunks.
+        3. Call the LLM with context + question.
+        4. Return answer text and source chunks.
+        """
+        chunks = self._retriever.retrieve(
+            question, user_id=user_id, document_type=document_type
+        )
+
+        if not chunks:
+            return {
+                "answer": "I couldn't find relevant information in your uploaded documents to answer that question.",
+                "sources": [],
+            }
+
+        context = "\n\n---\n\n".join(
+            f"[{c['document_type']} | {c['source_date'] or 'unknown date'} | {c['filename']}]\n{c['text']}"
+            for c in chunks
+        )
+
+        messages = [
+            SystemMessage(content=SYSTEM_PROMPT),
+            HumanMessage(
+                content=f"Context from the user's health documents:\n\n{context}\n\nQuestion: {question}"
+            ),
+        ]
+
+        response = await self._llm.ainvoke(messages)
+
         return {
-            "answer": "I couldn't find relevant information in your uploaded documents to answer that question.",
-            "sources": [],
+            "answer": response.content,
+            "sources": chunks,
         }
-
-    context = "\n\n---\n\n".join(
-        f"[{c['document_type']} | {c['source_date'] or 'unknown date'} | {c['filename']}]\n{c['text']}"
-        for c in chunks
-    )
-
-    messages = [
-        SystemMessage(content=SYSTEM_PROMPT),
-        HumanMessage(
-            content=f"Context from the user's health documents:\n\n{context}\n\nQuestion: {question}"
-        ),
-    ]
-
-    response = await llm.ainvoke(messages)
-
-    return {
-        "answer": response.content,
-        "sources": chunks,
-    }

@@ -2,65 +2,59 @@ from pathlib import Path
 
 import fitz  # PyMuPDF
 
-from ingestion.vision_extractor import extract_text_with_vision
+from ingestion.vision_extractor import VisionExtractor
 
 
-def is_meaningful_text(text: str) -> bool:
+class DocumentParser:
     """
-    Heuristic check to determine if extracted text is real content.
-    No LLM call needed — pure string analysis.
+    Parses uploaded documents into plain text.
+
+    Flow for PDFs:
+    1. Try PyMuPDF text extraction (fast, free).
+    2. If the result fails the meaningful-text heuristic, fall back to
+       GPT-4o mini vision OCR (covers scanned / image-based PDFs).
+
+    Plain text files are read directly.
     """
-    text = text.strip()
 
-    if len(text) < 100:
-        return False
+    def __init__(self, vision_extractor: VisionExtractor | None = None) -> None:
+        self._vision = vision_extractor or VisionExtractor()
 
-    if len(text.split()) < 20:
-        return False
+    @staticmethod
+    def is_meaningful_text(text: str) -> bool:
+        """
+        Heuristic to decide whether PyMuPDF extracted real content.
+        No LLM call — pure string analysis.
+        """
+        text = text.strip()
+        if len(text) < 100:
+            return False
+        if len(text.split()) < 20:
+            return False
+        alpha_ratio = sum(c.isalpha() for c in text) / len(text)
+        return alpha_ratio >= 0.6
 
-    alpha_ratio = sum(c.isalpha() for c in text) / len(text)
-    if alpha_ratio < 0.6:
-        return False
+    @staticmethod
+    def _extract_pdf_text(file_path: str) -> str:
+        doc = fitz.open(file_path)
+        return "\n".join(page.get_text() for page in doc)
 
-    return True
+    @staticmethod
+    def _render_pdf_to_images(file_path: str) -> list[bytes]:
+        doc = fitz.open(file_path)
+        return [page.get_pixmap(dpi=200).tobytes("png") for page in doc]
 
+    async def parse(self, file_path: str) -> str:
+        """Parse a document and return its full text."""
+        path = Path(file_path)
 
-def _extract_pdf_text(file_path: str) -> str:
-    """Extract text from a text-based PDF using PyMuPDF."""
-    doc = fitz.open(file_path)
-    return "\n".join(page.get_text() for page in doc)
+        if path.suffix.lower() == ".pdf":
+            text = self._extract_pdf_text(file_path)
+            if self.is_meaningful_text(text):
+                return text
+            # OCR fallback: render pages as images and send to GPT-4o mini
+            images = self._render_pdf_to_images(file_path)
+            return await self._vision.extract(images)
 
-
-def _render_pdf_to_images(file_path: str) -> list[bytes]:
-    """Render each PDF page to a PNG image (for OCR fallback)."""
-    doc = fitz.open(file_path)
-    images = []
-    for page in doc:
-        pix = page.get_pixmap(dpi=200)
-        images.append(pix.tobytes("png"))
-    return images
-
-
-async def parse_document(file_path: str) -> str:
-    """
-    Parse a document and return its full text.
-
-    Flow:
-    1. If PDF — try PyMuPDF text extraction.
-    2. If extracted text fails the heuristic check — fall back to GPT-4o mini vision OCR.
-    3. If plain text file — read directly.
-    """
-    path = Path(file_path)
-
-    if path.suffix.lower() == ".pdf":
-        text = _extract_pdf_text(file_path)
-
-        if is_meaningful_text(text):
-            return text
-
-        # OCR fallback: render pages as images, send to GPT-4o mini
-        images = _render_pdf_to_images(file_path)
-        return await extract_text_with_vision(images)
-
-    # Plain text fallback
-    return path.read_text(encoding="utf-8", errors="ignore")
+        # Plain text fallback
+        return path.read_text(encoding="utf-8", errors="ignore")

@@ -2,19 +2,24 @@ from fastembed import TextEmbedding
 
 MODEL_NAME = "BAAI/bge-small-en-v1.5"
 
-# Loaded once at module level — model is cached after first download
-_model: TextEmbedding | None = None
 
+class Embedder:
+    """
+    Wraps the FastEmbed model for in-process text embedding.
+    The model (~130 MB) is lazy-loaded on first use and then reused.
+    No GPU required — runs on CPU.
+    """
 
-def get_model() -> TextEmbedding:
-    global _model
-    if _model is None:
-        _model = TextEmbedding(model_name=MODEL_NAME)
-    return _model
+    def __init__(self, model_name: str = MODEL_NAME) -> None:
+        self._model_name = model_name
+        self._model: TextEmbedding | None = None
 
+    def _get_model(self) -> TextEmbedding:
+        if self._model is None:
+            self._model = TextEmbedding(model_name=self._model_name)
+        return self._model
 
-def embed_chunks(chunks: list[str]) -> list[list[float]]:
-    """Embed a list of text chunks. Returns a list of float vectors."""
-    model = get_model()
-    embeddings = list(model.embed(chunks))
-    return [e.tolist() for e in embeddings]
+    def embed(self, chunks: list[str]) -> list[list[float]]:
+        """Embed a list of text chunks. Returns a list of float vectors."""
+        model = self._get_model()
+        return [e.tolist() for e in model.embed(chunks)]

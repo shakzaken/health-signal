@@ -1,10 +1,11 @@
 from typing import Optional
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
+from api.deps import get_ingestion_pipeline
 from core.logger import get_logger
-from ingestion.pipeline import run_ingestion
+from ingestion.pipeline import IngestionPipeline
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/ingest", tags=["ingest"])
@@ -26,9 +27,12 @@ class IngestResponse(BaseModel):
 
 
 @router.post("", response_model=IngestResponse)
-async def ingest_document(request: IngestRequest):
+async def ingest_document(
+    request: IngestRequest,
+    pipeline: IngestionPipeline = Depends(get_ingestion_pipeline),
+):
     logger.info(f"Ingest request — document_id={request.document_id} file={request.file_path}")
-    result = await run_ingestion(
+    result = await pipeline.run(
         document_id=request.document_id,
         file_path=request.file_path,
         document_type=request.document_type,
