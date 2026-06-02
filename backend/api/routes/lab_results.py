@@ -1,0 +1,87 @@
+import uuid
+
+from fastapi import APIRouter, Depends, HTTPException
+from sqlmodel.ext.asyncio.session import AsyncSession
+
+from db.session import get_session
+from repositories.lab_result_repository import LabResultRepository
+from schemas.lab_result import LabMarkerResponse, LabResultResponse, MarkerHistoryResponse
+
+router = APIRouter(prefix="/lab-results", tags=["lab-results"])
+
+
+@router.get("", response_model=list[LabResultResponse])
+async def list_lab_results(session: AsyncSession = Depends(get_session)):
+    repo = LabResultRepository(session)
+    results = await repo.list_all()
+    return [
+        LabResultResponse(
+            id=r.id,
+            document_id=r.document_id,
+            test_date=r.test_date,
+            lab_name=r.lab_name,
+            created_at=r.created_at,
+        )
+        for r in results
+    ]
+
+
+# NOTE: specific routes must come before parameterised routes
+@router.get("/markers/{marker_name}/history", response_model=MarkerHistoryResponse)
+async def get_marker_history(
+    marker_name: str,
+    session: AsyncSession = Depends(get_session),
+):
+    repo = LabResultRepository(session)
+    markers = await repo.get_marker_history(marker_name)
+    return MarkerHistoryResponse(
+        name=marker_name,
+        history=[
+            LabMarkerResponse(
+                id=m.id,
+                lab_result_id=m.lab_result_id,
+                name=m.name,
+                value=m.value,
+                unit=m.unit,
+                reference_low=m.reference_low,
+                reference_high=m.reference_high,
+                status=m.status,
+                created_at=m.created_at,
+            )
+            for m in markers
+        ],
+    )
+
+
+@router.get("/{result_id}", response_model=LabResultResponse)
+async def get_lab_result(
+    result_id: uuid.UUID,
+    session: AsyncSession = Depends(get_session),
+):
+    repo = LabResultRepository(session)
+    result = await repo.get_by_id(result_id)
+    if not result:
+        raise HTTPException(status_code=404, detail="Lab result not found")
+    markers = await repo.get_markers_for_result(result_id)
+    return LabResultResponse(
+        id=result.id,
+        document_id=result.document_id,
+        test_date=result.test_date,
+        lab_name=result.lab_name,
+        created_at=result.created_at,
+        markers=[
+            LabMarkerResponse(
+                id=m.id,
+                lab_result_id=m.lab_result_id,
+                name=m.name,
+                value=m.value,
+                unit=m.unit,
+                reference_low=m.reference_low,
+                reference_high=m.reference_high,
+                status=m.status,
+                created_at=m.created_at,
+            )
+            for m in markers
+        ],
+    )
+
