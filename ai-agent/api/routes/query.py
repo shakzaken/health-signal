@@ -3,8 +3,8 @@ from typing import Optional
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
-from api.deps import get_query_chain
-from rag.query_chain import QueryChain
+from agents.supervisor import Supervisor
+from api.deps import get_supervisor
 
 router = APIRouter(prefix="/query", tags=["query"])
 
@@ -31,9 +31,9 @@ class QueryResponse(BaseModel):
 @router.post("", response_model=QueryResponse)
 async def query_documents(
     request: QueryRequest,
-    chain: QueryChain = Depends(get_query_chain),
+    supervisor: Supervisor = Depends(get_supervisor),
 ):
-    result = await chain.answer(
+    result = await supervisor.run(
         question=request.question,
         document_type=request.document_type,
     )

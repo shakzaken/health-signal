@@ -14,16 +14,33 @@ router = APIRouter(prefix="/lab-results", tags=["lab-results"])
 async def list_lab_results(session: AsyncSession = Depends(get_session)):
     repo = LabResultRepository(session)
     results = await repo.list_all()
-    return [
-        LabResultResponse(
-            id=r.id,
-            document_id=r.document_id,
-            test_date=r.test_date,
-            lab_name=r.lab_name,
-            created_at=r.created_at,
+    output = []
+    for r in results:
+        markers = await repo.get_markers_for_result(r.id)
+        output.append(
+            LabResultResponse(
+                id=r.id,
+                document_id=r.document_id,
+                test_date=r.test_date,
+                lab_name=r.lab_name,
+                created_at=r.created_at,
+                markers=[
+                    LabMarkerResponse(
+                        id=m.id,
+                        lab_result_id=m.lab_result_id,
+                        name=m.name,
+                        value=m.value,
+                        unit=m.unit,
+                        reference_low=m.reference_low,
+                        reference_high=m.reference_high,
+                        status=m.status,
+                        created_at=m.created_at,
+                    )
+                    for m in markers
+                ],
+            )
         )
-        for r in results
-    ]
+    return output
 
 
 # NOTE: specific routes must come before parameterised routes

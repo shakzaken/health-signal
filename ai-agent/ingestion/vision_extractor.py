@@ -1,41 +1,42 @@
 import base64
 
-from openai import AsyncOpenAI
+from langchain_core.messages import HumanMessage
+from langchain_core.runnables.config import RunnableConfig
+from langchain_openai import ChatOpenAI
 
 from core.config import settings
+
+_EXTRACT_PROMPT = (
+    "Extract all text from this medical document exactly as it appears. "
+    "Preserve structure including labels, values, and units. "
+    "Return only the extracted text, no commentary."
+)
 
 
 class VisionExtractor:
     """
     OCR fallback using GPT-4o mini vision.
     Used when PyMuPDF cannot extract meaningful text from a PDF.
-    Client is lazy-initialized to avoid import-time failure without an API key.
+    Uses ChatOpenAI (LangChain) so the call is traced via the shared
+    RunnableConfig callback manager — no separate @traceable needed.
     """
 
     def __init__(self, api_key: str | None = None) -> None:
-        self._api_key = api_key or settings.openai_api_key
-        self._client: AsyncOpenAI | None = None
+        self._llm = ChatOpenAI(
+            model=settings.openai_model,
+            api_key=api_key or settings.openai_api_key,
+        )
 
-    def _get_client(self) -> AsyncOpenAI:
-        if self._client is None:
-            self._client = AsyncOpenAI(api_key=self._api_key)
-        return self._client
-
-    async def extract(self, image_bytes_list: list[bytes]) -> str:
+    async def extract(
+        self,
+        image_bytes_list: list[bytes],
+        config: RunnableConfig | None = None,
+    ) -> str:
         """
         Send PDF page images to GPT-4o mini and extract all text.
         Preserves structure including labels, values, and units.
         """
-        content: list[dict] = [
-            {
-                "type": "text",
-                "text": (
-                    "Extract all text from this medical document exactly as it appears. "
-                    "Preserve structure including labels, values, and units. "
-                    "Return only the extracted text, no commentary."
-                ),
-            }
-        ]
+        content: list[dict] = [{"type": "text", "text": _EXTRACT_PROMPT}]
 
         for image_bytes in image_bytes_list:
             b64 = base64.b64encode(image_bytes).decode("utf-8")
@@ -46,11 +47,6 @@ class VisionExtractor:
                 }
             )
 
-        client = self._get_client()
-        response = await client.chat.completions.create(
-            model=settings.openai_model,
-            messages=[{"role": "user", "content": content}],
-            max_tokens=4096,
-        )
-
-        return response.choices[0].message.content or ""
+        message = HumanMessage(content=content)
+        response = await self._llm.ainvoke([message], config=config)
+        return response.content or ""

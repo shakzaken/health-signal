@@ -1,6 +1,6 @@
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
-from langsmith import traceable
+from langchain_core.runnables.config import RunnableConfig
 
 from rag.retriever import Retriever
 
@@ -38,13 +38,13 @@ class QueryChain:
         self._retriever = retriever
         self._llm = llm
 
-    async def _translate_to_hebrew(self, text: str) -> str:
+    async def _translate_to_hebrew(self, text: str, config: RunnableConfig | None = None) -> str:
         """Translate text to Hebrew using the LLM."""
         messages = [
             SystemMessage(content=TRANSLATE_TO_HEBREW_PROMPT),
             HumanMessage(content=text),
         ]
-        response = await self._llm.ainvoke(messages)
+        response = await self._llm.ainvoke(messages, config=config)
         return response.content.strip()
 
     def _is_english(self, text: str) -> bool:
@@ -55,12 +55,12 @@ class QueryChain:
             return True
         return (ascii_chars / total_alpha) > 0.8
 
-    @traceable(name="rag_query_chain")
     async def answer(
         self,
         question: str,
         user_id: str = "default",
         document_type: str | None = None,
+        config: RunnableConfig | None = None,
     ) -> dict:
         """
         1. If the question is in English, translate it to Hebrew for retrieval.
@@ -68,10 +68,13 @@ class QueryChain:
         3. Build context string from retrieved chunks.
         4. Call the LLM with context + original question (answer in user's language).
         5. Return answer text and source chunks.
+
+        config is threaded through every LLM call so all spans appear nested
+        under the parent trace in LangSmith.
         """
         retrieval_query = question
         if self._is_english(question):
-            retrieval_query = await self._translate_to_hebrew(question)
+            retrieval_query = await self._translate_to_hebrew(question, config=config)
 
         chunks = self._retriever.retrieve(
             retrieval_query, user_id=user_id, document_type=document_type
@@ -95,7 +98,7 @@ class QueryChain:
             ),
         ]
 
-        response = await self._llm.ainvoke(messages)
+        response = await self._llm.ainvoke(messages, config=config)
 
         return {
             "answer": response.content,
