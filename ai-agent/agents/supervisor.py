@@ -2,8 +2,9 @@ from typing import Literal
 
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.runnables.config import RunnableConfig
+from langchain_core.tracers.langchain import LangChainTracer
 from langgraph.graph import END, StateGraph
-from langsmith import traceable
 from pydantic import BaseModel
 from typing_extensions import TypedDict
 
@@ -47,6 +48,10 @@ class Supervisor:
     it to the appropriate agent:
       - lab_analysis → LabAnalysisAgent (structured PostgreSQL data)
       - rag           → QueryChain (semantic Qdrant search)
+
+    A single LangChainTracer is created at the start of each request and
+    threaded through every sub-call via the RunnableConfig so all spans
+    appear as children of the same LangSmith trace.
     """
 
     def __init__(
@@ -62,7 +67,7 @@ class Supervisor:
 
     # ── Graph nodes ──────────────────────────────────────────────────────────
 
-    async def _classify(self, state: AgentState) -> AgentState:
+    async def _classify(self, state: AgentState, config: RunnableConfig) -> AgentState:
         """Classify the question and set the route."""
         classifier = self._llm.with_structured_output(RouteDecision)
         messages = [
@@ -70,24 +75,25 @@ class Supervisor:
             HumanMessage(content=state["question"]),
         ]
         try:
-            decision: RouteDecision = await classifier.ainvoke(messages)
+            decision: RouteDecision = await classifier.ainvoke(messages, config=config)
             route = decision.route
         except Exception:
             route = "rag"  # safe fallback
         logger.info(f"Supervisor classified question → route={route}")
         return {**state, "route": route}
 
-    async def _run_lab_analysis(self, state: AgentState) -> AgentState:
+    async def _run_lab_analysis(self, state: AgentState, config: RunnableConfig) -> AgentState:
         """Run the Lab Analysis Agent."""
-        result = await self._lab_agent.analyze(question=state["question"])
+        result = await self._lab_agent.analyze(question=state["question"], config=config)
         return {**state, "answer": result["answer"], "sources": result["sources"]}
 
-    async def _run_rag(self, state: AgentState) -> AgentState:
+    async def _run_rag(self, state: AgentState, config: RunnableConfig) -> AgentState:
         """Run the RAG chain."""
         result = await self._rag_chain.answer(
             question=state["question"],
             user_id=state["user_id"],
             document_type=state["document_type"],
+            config=config,
         )
         return {**state, "answer": result["answer"], "sources": result["sources"]}
 
@@ -118,14 +124,19 @@ class Supervisor:
 
     # ── Public API ────────────────────────────────────────────────────────────
 
-    @traceable(name="supervisor")
     async def run(
         self,
         question: str,
         user_id: str = "default",
         document_type: str | None = None,
     ) -> dict:
-        """Route the question to the right agent and return the answer."""
+        """
+        Route the question to the right agent and return the answer.
+
+        Creates a fresh LangChainTracer for each request and passes it as
+        part of the RunnableConfig so every LLM call, tool call, and node
+        execution is captured under a single trace in LangSmith.
+        """
         initial_state: AgentState = {
             "question": question,
             "user_id": user_id,
@@ -134,7 +145,11 @@ class Supervisor:
             "sources": [],
             "route": "",
         }
-        final_state = await self._graph.ainvoke(initial_state)
+        config: RunnableConfig = {
+            "callbacks": [LangChainTracer()],
+            "run_name": "supervisor",
+        }
+        final_state = await self._graph.ainvoke(initial_state, config=config)
         return {
             "answer": final_state["answer"],
             "sources": final_state["sources"],

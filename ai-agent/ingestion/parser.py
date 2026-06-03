@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import fitz  # PyMuPDF
+from langchain_core.runnables.config import RunnableConfig
 
 from ingestion.vision_extractor import VisionExtractor
 
@@ -44,7 +45,11 @@ class DocumentParser:
         doc = fitz.open(file_path)
         return [page.get_pixmap(dpi=200).tobytes("png") for page in doc]
 
-    async def parse(self, file_path: str) -> str:
+    async def parse(
+        self,
+        file_path: str,
+        config: RunnableConfig | None = None,
+    ) -> str:
         """Parse a document and return its full text."""
         path = Path(file_path)
 
@@ -54,7 +59,7 @@ class DocumentParser:
                 return text
             # OCR fallback: render pages as images and send to GPT-4o mini
             images = self._render_pdf_to_images(file_path)
-            return await self._vision.extract(images)
+            return await self._vision.extract(images, config=config)
 
         # Plain text fallback
         return path.read_text(encoding="utf-8", errors="ignore")

@@ -10,6 +10,7 @@ from rag.query_chain import QueryChain
 
 def make_rag_mock(answer: str = "RAG answer") -> MagicMock:
     rag = MagicMock(spec=QueryChain)
+    # answer() accepts an optional config kwarg
     rag.answer = AsyncMock(return_value={"answer": answer, "sources": []})
     return rag
 
@@ -24,7 +25,12 @@ def make_llm_mock(route: str = "rag", answer: str = "LLM answer") -> MagicMock:
     classify_chain.ainvoke = AsyncMock(return_value=RouteDecision(route=route))
     llm.with_structured_output.return_value = classify_chain
 
-    # ainvoke used directly by lab analysis agent for the final answer
+    # bind_tools returns a runnable — ainvoke returns a response with no tool_calls (final answer)
+    bound = MagicMock()
+    bound.ainvoke = AsyncMock(return_value=MagicMock(content=answer, tool_calls=[]))
+    llm.bind_tools.return_value = bound
+
+    # ainvoke used directly (e.g. in RAG chain)
     llm.ainvoke = AsyncMock(return_value=MagicMock(content=answer))
     return llm
 

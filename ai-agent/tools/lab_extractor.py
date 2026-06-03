@@ -1,6 +1,7 @@
 from typing import Optional
 
 from langchain_core.language_models.chat_models import BaseChatModel
+from langchain_core.runnables.config import RunnableConfig
 from pydantic import BaseModel
 
 EXTRACTION_PROMPT = """You are a medical data extraction assistant.
@@ -46,14 +47,19 @@ class LabExtractor:
     def __init__(self, llm: BaseChatModel) -> None:
         self._chain = llm.with_structured_output(ExtractedLabResult)
 
-    async def extract(self, raw_text: str) -> ExtractedLabResult:
+    async def extract(
+        self,
+        raw_text: str,
+        config: RunnableConfig | None = None,
+    ) -> ExtractedLabResult:
         """
         Parse raw text from a lab document and return structured markers.
         Returns an empty result if extraction fails.
         """
         try:
             result = await self._chain.ainvoke(
-                f"{EXTRACTION_PROMPT}\n\nDocument text:\n{raw_text}"
+                f"{EXTRACTION_PROMPT}\n\nDocument text:\n{raw_text}",
+                config=config,
             )
             return result
         except Exception:
