@@ -1,7 +1,8 @@
 import uuid
 from typing import Optional
 
-from sqlalchemy import select
+from datetime import date
+from sqlalchemy import select, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models.lab_result import LabMarker, LabResult
@@ -41,12 +42,17 @@ class LabResultRepository:
         )
         return list(result.scalars().all())
 
-    async def get_marker_history(self, marker_name: str) -> list[LabMarker]:
-        """Return all historical values for a specific marker, ordered by test date."""
+    async def get_marker_history(self, marker_name: str) -> list[tuple[LabMarker, date]]:
+        """Return all historical values for a specific marker with the test date.
+
+        Uses case-insensitive LIKE search so 'Vitamin D' matches 'Vitamin D (25-OH)'.
+        Returns list of (LabMarker, test_date) tuples ordered by test date.
+        """
+        pattern = f"%{marker_name}%"
         result = await self.session.execute(
-            select(LabMarker)
+            select(LabMarker, LabResult.test_date)
             .join(LabResult, LabMarker.lab_result_id == LabResult.id)
-            .where(LabMarker.name == marker_name)
+            .where(LabMarker.name.ilike(pattern))
             .order_by(LabResult.test_date.asc())
         )
-        return list(result.scalars().all())
+        return list(result.all())

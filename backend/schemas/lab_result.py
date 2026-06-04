@@ -37,6 +37,7 @@ class LabMarkerResponse(BaseModel):
     reference_high: Optional[float]
     status: Optional[MarkerStatus]
     created_at: datetime
+    test_date: Optional[date] = None  # populated in history responses
 
 
 class LabResultResponse(BaseModel):

@@ -19,7 +19,7 @@ DOCUMENT_TYPES = [
 ]
 
 
-def upload_document(file, document_type: str, source_date: str) -> str:
+def upload_document(file, source_date: str) -> str:
     if file is None:
         return "Please select a file to upload."
 
@@ -30,7 +30,7 @@ def upload_document(file, document_type: str, source_date: str) -> str:
 
         with open(file_path, "rb") as f:
             files = {"file": (filename, f, "application/octet-stream")}
-            data = {"document_type": document_type}
+            data = {}
             if source_date:
                 data["source_date"] = source_date
 
@@ -43,15 +43,20 @@ def upload_document(file, document_type: str, source_date: str) -> str:
 
         if response.status_code == 200:
             doc = response.json()
+            doc_type = doc.get("document_type") or "detecting…"
             return (
                 f"✅ Upload successful!\n\n"
                 f"Document ID: {doc['id']}\n"
                 f"Filename:    {doc['filename']}\n"
-                f"Type:        {doc['document_type']}\n"
+                f"Type:        {doc_type}\n"
                 f"Status:      {doc['processing_status']}\n\n"
-                f"Ingestion has started in the background. "
-                f"Refresh document status to check progress."
+                f"The document type is detected automatically. "
+                f"Check document status to see the final result."
             )
+        elif response.status_code == 409:
+            detail = response.json().get("detail", {})
+            existing_id = detail.get("existing_document_id", "unknown")
+            return f"⚠️ This file has already been uploaded.\n\nExisting document ID: {existing_id}"
         else:
             return f"❌ Upload failed: {response.status_code}\n{response.text}"
 
@@ -135,11 +140,6 @@ with gr.Blocks(title="HealthSignal") as demo:
                     label="Select file (PDF or text)",
                     file_types=[".pdf", ".txt"],
                 )
-                doc_type = gr.Dropdown(
-                    choices=DOCUMENT_TYPES,
-                    value="blood_test",
-                    label="Document type",
-                )
                 source_date_input = gr.Textbox(
                     label="Document date (YYYY-MM-DD, optional)",
                     placeholder="e.g. 2024-03-15",
@@ -150,7 +150,7 @@ with gr.Blocks(title="HealthSignal") as demo:
 
         upload_btn.click(
             fn=upload_document,
-            inputs=[file_input, doc_type, source_date_input],
+            inputs=[file_input, source_date_input],
             outputs=upload_output,
         )
 

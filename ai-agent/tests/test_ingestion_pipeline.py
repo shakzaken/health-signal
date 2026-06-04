@@ -16,6 +16,8 @@ from ingestion.parser import DocumentParser
 from ingestion.pipeline import IngestionPipeline
 from rag.writer import QdrantWriter
 from tools.lab_extractor import ExtractedLabResult, LabExtractor
+from tools.supplement_extractor import ExtractedSupplements, SupplementExtractor
+from tools.symptom_extractor import ExtractedSymptoms, SymptomExtractor
 
 PDF_PATH = str(Path(__file__).parents[2] / "test-data" / "04efd_myTests.pdf")
 
@@ -35,14 +37,30 @@ def mock_lab_extractor() -> MagicMock:
 
 
 @pytest.fixture
-def pipeline(chunker, embedder, mock_writer, mock_lab_extractor) -> IngestionPipeline:
-    """Real parser + chunker + embedder, mocked writer and extractor."""
+def mock_symptom_extractor() -> MagicMock:
+    extractor = MagicMock(spec=SymptomExtractor)
+    extractor.extract = AsyncMock(return_value=ExtractedSymptoms())
+    return extractor
+
+
+@pytest.fixture
+def mock_supplement_extractor() -> MagicMock:
+    extractor = MagicMock(spec=SupplementExtractor)
+    extractor.extract = AsyncMock(return_value=ExtractedSupplements())
+    return extractor
+
+
+@pytest.fixture
+def pipeline(chunker, embedder, mock_writer, mock_lab_extractor, mock_symptom_extractor, mock_supplement_extractor) -> IngestionPipeline:
+    """Real parser + chunker + embedder, mocked writer and extractors."""
     return IngestionPipeline(
         parser=DocumentParser(),
         chunker=chunker,
         embedder=embedder,
         writer=mock_writer,
         lab_extractor=mock_lab_extractor,
+        symptom_extractor=mock_symptom_extractor,
+        supplement_extractor=mock_supplement_extractor,
     )
 
 
@@ -104,7 +122,9 @@ async def test_pipeline_returns_failure_when_file_not_found(pipeline):
 
 
 @pytest.mark.asyncio
-async def test_pipeline_returns_failure_when_no_chunks_produced(mock_writer, mock_lab_extractor, chunker, embedder):
+async def test_pipeline_returns_failure_when_no_chunks_produced(
+    mock_writer, mock_lab_extractor, mock_symptom_extractor, mock_supplement_extractor, chunker, embedder
+):
     """If the document produces no chunks, ingestion should fail gracefully."""
     parser = AsyncMock(spec=DocumentParser)
     parser.parse.return_value = ""  # empty text → no chunks
@@ -115,6 +135,8 @@ async def test_pipeline_returns_failure_when_no_chunks_produced(mock_writer, moc
         embedder=embedder,
         writer=mock_writer,
         lab_extractor=mock_lab_extractor,
+        symptom_extractor=mock_symptom_extractor,
+        supplement_extractor=mock_supplement_extractor,
     )
     result = await pipeline.run(
         document_id="doc-empty",

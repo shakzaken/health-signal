@@ -17,6 +17,18 @@ class SymptomRepository:
         await self.session.refresh(symptom)
         return symptom
 
+    async def create_entries(self, entries: list[SymptomEntry]) -> list[SymptomEntry]:
+        for entry in entries:
+            self.session.add(entry)
+        await self.session.commit()
+        return entries
+
+    async def list_all(self) -> list[SymptomEntry]:
+        result = await self.session.execute(
+            select(SymptomEntry).order_by(SymptomEntry.occurred_at.desc())
+        )
+        return list(result.scalars().all())
+
     async def list_by_date_range(
         self,
         from_date: Optional[date] = None,

@@ -89,7 +89,8 @@ class LabAnalysisAgent:
                 if entry.get("reference_low") is not None and entry.get("reference_high") is not None:
                     ref = f" (normal: {entry['reference_low']}–{entry['reference_high']})"
                 status = f" [{entry['status']}]" if entry.get("status") else ""
-                lines.append(f"  • {entry.get('created_at', 'unknown date')}: {entry['value']} {entry['unit']}{ref}{status}")
+                date_label = entry.get("test_date") or entry.get("created_at", "unknown date")
+                lines.append(f"  • {date_label}: {entry['value']} {entry['unit']}{ref}{status}")
             return "\n".join(lines)
 
         return [fetch_all_lab_results, get_marker_history]

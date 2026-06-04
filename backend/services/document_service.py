@@ -1,17 +1,24 @@
+import hashlib
 import uuid
 from datetime import date
 from pathlib import Path
 
 import httpx
-from fastapi import UploadFile
+from fastapi import HTTPException, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.config import settings
 from core.logger import get_logger
 from models.document import Document, DocumentType, ProcessingStatus
 from models.lab_result import LabMarker, LabResult, MarkerStatus
+from models.supplement import SupplementEntry
+from models.symptom import SymptomEntry, SymptomSeverity
+from models.timeline import EventType
 from repositories.document_repository import DocumentRepository
 from repositories.lab_result_repository import LabResultRepository
+from repositories.supplement_repository import SupplementRepository
+from repositories.symptom_repository import SymptomRepository
+from services.timeline_service import TimelineService
 
 logger = get_logger(__name__)
 
@@ -20,6 +27,9 @@ class DocumentService:
     def __init__(self, session: AsyncSession) -> None:
         self.repo = DocumentRepository(session)
         self.lab_repo = LabResultRepository(session)
+        self.symptom_repo = SymptomRepository(session)
+        self.supplement_repo = SupplementRepository(session)
+        self.timeline_service = TimelineService(session)
 
     async def upload(
         self,
@@ -27,6 +37,22 @@ class DocumentService:
         document_type: DocumentType,
         source_date: date | None = None,
     ) -> Document:
+        content = await file.read()
+        content_hash = hashlib.sha256(content).hexdigest()
+
+        # Reject duplicate uploads for the same user
+        existing = await self.repo.find_by_hash(content_hash)
+        if existing:
+            logger.warning(f"Duplicate upload rejected — hash={content_hash} existing_id={existing.id}")
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "error": "duplicate_document",
+                    "existing_document_id": str(existing.id),
+                    "message": "This file has already been uploaded.",
+                },
+            )
+
         # Save file to local filesystem
         storage_path = Path(settings.file_storage_path)
         storage_path.mkdir(parents=True, exist_ok=True)
@@ -34,7 +60,6 @@ class DocumentService:
         unique_filename = f"{uuid.uuid4()}_{file.filename}"
         file_path = storage_path.resolve() / unique_filename  # absolute path so ai-agent can locate it
 
-        content = await file.read()
         file_path.write_bytes(content)
         logger.info(f"File saved — path={file_path} size={len(content)} bytes")
 
@@ -45,6 +70,7 @@ class DocumentService:
             document_type=document_type,
             source_date=source_date,
             processing_status=ProcessingStatus.pending,
+            content_hash=content_hash,
         )
         document = await self.repo.create(document)
         logger.info(f"Document record created — id={document.id}")
@@ -58,7 +84,7 @@ class DocumentService:
         payload = {
             "document_id": str(document.id),
             "file_path": document.file_path,
-            "document_type": document.document_type.value,
+            "document_type": document.document_type.value if document.document_type else None,
             "source_date": document.source_date.isoformat() if document.source_date else None,
             "filename": document.filename,
         }
@@ -70,12 +96,19 @@ class DocumentService:
                 result = response.json()
 
                 new_status = ProcessingStatus.completed if result.get("success") else ProcessingStatus.failed
-                await self.repo.update_status(document.id, new_status)
+                detected_type = result.get("detected_document_type")
+                await self.repo.update_status(document.id, new_status, detected_document_type=detected_type)
+                if detected_type:
+                    logger.info(f"Document type auto-detected — id={document.id} type={detected_type}")
                 logger.info(f"Document status updated — id={document.id} status={new_status}")
 
-                # Save structured lab markers if the ai-agent extracted them
+                # Save structured data if the ai-agent extracted it
                 if result.get("lab_result") and result["lab_result"].get("markers"):
                     await self._save_lab_result(document, result["lab_result"])
+                if result.get("symptom_data") and result["symptom_data"].get("entries"):
+                    await self._save_symptoms(document, result["symptom_data"])
+                if result.get("supplement_data") and result["supplement_data"].get("entries"):
+                    await self._save_supplements(document, result["supplement_data"])
 
         except Exception as e:
             logger.error(f"Ingestion trigger failed — {e}")
@@ -117,5 +150,107 @@ class DocumentService:
             await self.lab_repo.create_markers(markers)
             logger.info(f"Lab result saved — document_id={document.id} markers={len(markers)}")
 
+            lab_name_part = f" ({lab_data['lab_name']})" if lab_data.get("lab_name") else ""
+            await self.timeline_service.create_event(
+                event_type=EventType.lab_result,
+                reference_id=lab_result.id,
+                reference_table="lab_results",
+                event_date=test_date,
+                summary=f"Blood test{lab_name_part}: {len(markers)} markers recorded",
+            )
+
         except Exception as e:
             logger.error(f"Failed to save lab result — document_id={document.id} error={e}")
+
+    async def _save_symptoms(self, document: Document, symptom_data: dict) -> None:
+        """Persist symptom entries extracted by the ai-agent to PostgreSQL."""
+        try:
+            entries = []
+            for s in symptom_data["entries"]:
+                try:
+                    occurred_at = date.fromisoformat(s["occurred_at"])
+                except (ValueError, KeyError, TypeError):
+                    occurred_at = document.source_date or date.today()
+
+                severity = None
+                if s.get("severity") in SymptomSeverity._value2member_map_:
+                    severity = SymptomSeverity(s["severity"])
+
+                entry = SymptomEntry(
+                    document_id=document.id,
+                    symptom_name=s["symptom_name"],
+                    severity=severity,
+                    occurred_at=occurred_at,
+                    notes=s.get("notes"),
+                )
+                entries.append(entry)
+
+            saved = await self.symptom_repo.create_entries(entries)
+            logger.info(f"Symptoms saved — document_id={document.id} count={len(saved)}")
+
+            for entry in saved:
+                severity_part = f" ({entry.severity})" if entry.severity else ""
+                await self.timeline_service.create_event(
+                    event_type=EventType.symptom,
+                    reference_id=entry.id,
+                    reference_table="symptom_entries",
+                    event_date=entry.occurred_at,
+                    summary=f"Symptom: {entry.symptom_name}{severity_part}",
+                )
+
+        except Exception as e:
+            logger.error(f"Failed to save symptoms — document_id={document.id} error={e}")
+
+    async def _save_supplements(self, document: Document, supplement_data: dict) -> None:
+        """Persist supplement entries extracted by the ai-agent to PostgreSQL."""
+        try:
+            entries = []
+            for s in supplement_data["entries"]:
+                started_at = None
+                if s.get("started_at"):
+                    try:
+                        started_at = date.fromisoformat(s["started_at"])
+                    except (ValueError, TypeError):
+                        pass
+
+                stopped_at = None
+                if s.get("stopped_at"):
+                    try:
+                        stopped_at = date.fromisoformat(s["stopped_at"])
+                    except (ValueError, TypeError):
+                        pass
+
+                entry = SupplementEntry(
+                    document_id=document.id,
+                    name=s["name"],
+                    dosage=s["dosage"],
+                    frequency=s["frequency"],
+                    started_at=started_at or document.source_date,
+                    stopped_at=stopped_at,
+                    notes=s.get("notes"),
+                )
+                entries.append(entry)
+
+            saved = await self.supplement_repo.create_entries(entries)
+            logger.info(f"Supplements saved — document_id={document.id} count={len(saved)}")
+
+            for entry in saved:
+                start_date = entry.started_at or date.today()
+                await self.timeline_service.create_event(
+                    event_type=EventType.supplement_change,
+                    reference_id=entry.id,
+                    reference_table="supplement_entries",
+                    event_date=start_date,
+                    summary=f"Started supplement: {entry.name} {entry.dosage} {entry.frequency}",
+                )
+                if entry.stopped_at:
+                    await self.timeline_service.create_event(
+                        event_type=EventType.supplement_change,
+                        reference_id=entry.id,
+                        reference_table="supplement_entries",
+                        event_date=entry.stopped_at,
+                        summary=f"Stopped supplement: {entry.name} {entry.dosage} {entry.frequency}",
+                    )
+
+        except Exception as e:
+            logger.error(f"Failed to save supplements — document_id={document.id} error={e}")

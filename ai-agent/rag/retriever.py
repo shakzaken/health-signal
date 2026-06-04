@@ -1,5 +1,5 @@
 from qdrant_client import QdrantClient
-from qdrant_client.models import FieldCondition, Filter, MatchValue
+from qdrant_client.models import DatetimeRange, FieldCondition, Filter, MatchValue, Range
 
 from ingestion.embedder import Embedder
 from rag.qdrant_client import COLLECTION_NAME
@@ -12,7 +12,7 @@ class Retriever:
     """
     Semantic retrieval from Qdrant.
     Always scopes results to a specific user — user isolation is not a RAG problem.
-    Optionally narrows by document_type for targeted queries.
+    Optionally narrows by document_type and/or source_date range for targeted queries.
     """
 
     def __init__(self, client: QdrantClient, embedder: Embedder) -> None:
@@ -24,9 +24,17 @@ class Retriever:
         query: str,
         user_id: str = DEFAULT_USER_ID,
         document_type: str | None = None,
+        date_from: str | None = None,
+        date_to: str | None = None,
         top_k: int = TOP_K,
     ) -> list[dict]:
-        """Embed query and return the top-k most relevant chunks from Qdrant."""
+        """
+        Embed query and return the top-k most relevant chunks from Qdrant.
+
+        date_from / date_to are ISO date strings (YYYY-MM-DD).
+        When provided they restrict results to chunks whose source_date falls
+        within the given range — enabling time-aware retrieval.
+        """
         query_vector = self._embedder.embed([query])[0]
 
         must_conditions = [
@@ -35,6 +43,15 @@ class Retriever:
         if document_type:
             must_conditions.append(
                 FieldCondition(key="document_type", match=MatchValue(value=document_type))
+            )
+        if date_from or date_to:
+            range_kwargs: dict = {}
+            if date_from:
+                range_kwargs["gte"] = date_from
+            if date_to:
+                range_kwargs["lte"] = date_to
+            must_conditions.append(
+                FieldCondition(key="source_date", range=Range(**range_kwargs))
             )
 
         response = self._client.query_points(

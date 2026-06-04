@@ -2,7 +2,10 @@ from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.runnables.config import RunnableConfig
 
+from core.logger import get_logger
 from rag.retriever import Retriever
+
+logger = get_logger(__name__)
 
 SYSTEM_PROMPT = """You are a personal health assistant helping a user understand their health data.
 
@@ -19,7 +22,7 @@ Guidelines:
 - Always answer in the same language the user asked the question in
 """
 
-TRANSLATE_TO_HEBREW_PROMPT = """You are a translator. Translate the following question to Hebrew.
+TRANSLATE_TO_ENGLISH_PROMPT = """You are a translator. Translate the following text to English.
 Return only the translated text, nothing else."""
 
 
@@ -28,9 +31,13 @@ class QueryChain:
     RAG query chain: retrieve relevant chunks from Qdrant, then generate
     an answer with the LLM using those chunks as context.
 
-    All documents are stored in Hebrew in the vector store.
-    If the user's question is in English, it is translated to Hebrew before
-    retrieval so that embedding similarity is meaningful.
+    The corpus is mixed-language (Hebrew Clalit PDFs + English journal/supplements).
+    To handle all query/document language combinations we use dual retrieval:
+      - Search Qdrant with the original query (catches same-language docs)
+      - If the query is not English, also search with an English translation
+        (catches English docs when asking in Hebrew)
+      - Merge results by score, deduplicate, take top-K
+
     The final answer is always in the same language as the original question.
     """
 
@@ -38,22 +45,33 @@ class QueryChain:
         self._retriever = retriever
         self._llm = llm
 
-    async def _translate_to_hebrew(self, text: str, config: RunnableConfig | None = None) -> str:
-        """Translate text to Hebrew using the LLM."""
-        messages = [
-            SystemMessage(content=TRANSLATE_TO_HEBREW_PROMPT),
-            HumanMessage(content=text),
-        ]
-        response = await self._llm.ainvoke(messages, config=config)
-        return response.content.strip()
-
     def _is_english(self, text: str) -> bool:
-        """Return True if the text is predominantly ASCII (English)."""
+        """Return True if the text is predominantly ASCII alpha characters."""
         ascii_chars = sum(1 for c in text if ord(c) < 128 and c.isalpha())
         total_alpha = sum(1 for c in text if c.isalpha())
         if total_alpha == 0:
             return True
         return (ascii_chars / total_alpha) > 0.8
+
+    async def _translate_to_english(self, text: str, config: RunnableConfig | None = None) -> str:
+        """Translate text to English using the LLM."""
+        messages = [
+            SystemMessage(content=TRANSLATE_TO_ENGLISH_PROMPT),
+            HumanMessage(content=text),
+        ]
+        response = await self._llm.ainvoke(messages, config=config)
+        return response.content.strip()
+
+    def _merge_chunks(self, primary: list[dict], secondary: list[dict], top_k: int) -> list[dict]:
+        """Merge two chunk lists by score, deduplicate by chunk id, return top_k."""
+        seen_ids: set[str] = set()
+        merged: list[dict] = []
+        for chunk in sorted(primary + secondary, key=lambda c: c.get("score", 0), reverse=True):
+            chunk_id = chunk.get("id") or chunk.get("text", "")[:50]
+            if chunk_id not in seen_ids:
+                seen_ids.add(chunk_id)
+                merged.append(chunk)
+        return merged[:top_k]
 
     async def answer(
         self,
@@ -63,22 +81,34 @@ class QueryChain:
         config: RunnableConfig | None = None,
     ) -> dict:
         """
-        1. If the question is in English, translate it to Hebrew for retrieval.
-        2. Retrieve relevant chunks from Qdrant using the Hebrew query.
-        3. Build context string from retrieved chunks.
+        1. Retrieve chunks using the original question.
+        2. If query is not English, also retrieve with an English translation and merge.
+        3. Build context string from merged chunks.
         4. Call the LLM with context + original question (answer in user's language).
         5. Return answer text and source chunks.
 
         config is threaded through every LLM call so all spans appear nested
         under the parent trace in LangSmith.
         """
-        retrieval_query = question
-        if self._is_english(question):
-            retrieval_query = await self._translate_to_hebrew(question, config=config)
-
-        chunks = self._retriever.retrieve(
-            retrieval_query, user_id=user_id, document_type=document_type
+        primary_chunks = self._retriever.retrieve(
+            question, user_id=user_id, document_type=document_type
         )
+
+        # Dual retrieval: if the query is not English, also search with English translation
+        # so Hebrew queries can find English journal/supplement documents
+        if not self._is_english(question):
+            try:
+                english_query = await self._translate_to_english(question, config=config)
+                logger.debug(f"Dual retrieval — translated query: {english_query[:80]}")
+                secondary_chunks = self._retriever.retrieve(
+                    english_query, user_id=user_id, document_type=document_type
+                )
+                chunks = self._merge_chunks(primary_chunks, secondary_chunks, top_k=5)
+            except Exception as e:
+                logger.warning(f"Translation for dual retrieval failed — {e}")
+                chunks = primary_chunks
+        else:
+            chunks = primary_chunks
 
         if not chunks:
             return {

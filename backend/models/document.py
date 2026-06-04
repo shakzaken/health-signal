@@ -32,7 +32,7 @@ class Document(Base):
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     filename: Mapped[str]
     file_path: Mapped[str]
-    document_type: Mapped[DocumentType] = mapped_column(SAEnum(DocumentType, native_enum=False))
+    document_type: Mapped[Optional[DocumentType]] = mapped_column(SAEnum(DocumentType, native_enum=False), nullable=True, default=None)
     source_date: Mapped[Optional[date]] = mapped_column(nullable=True, default=None)
     uploaded_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(UTC).replace(tzinfo=None))
     processing_status: Mapped[ProcessingStatus] = mapped_column(
@@ -40,3 +40,4 @@ class Document(Base):
         default=ProcessingStatus.pending,
     )
     raw_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True, default=None)
+    content_hash: Mapped[Optional[str]] = mapped_column(nullable=True, default=None)
