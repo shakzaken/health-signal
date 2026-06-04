@@ -25,4 +25,4 @@ class TimelineEvent(Base):
     reference_table: Mapped[str]
     event_date: Mapped[date]
     summary: Mapped[str]
-    created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(timezone.utc))
+    created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
