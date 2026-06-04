@@ -4,7 +4,7 @@ from typing import Optional
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from models.document import Document, ProcessingStatus
+from models.document import Document, DocumentType, ProcessingStatus
 
 
 class DocumentRepository:
@@ -29,11 +29,18 @@ class DocumentRepository:
         )
         return list(result.scalars().all())
 
+    async def find_by_hash(self, content_hash: str) -> Optional[Document]:
+        result = await self.session.execute(
+            select(Document).where(Document.content_hash == content_hash)
+        )
+        return result.scalar_one_or_none()
+
     async def update_status(
         self,
         document_id: uuid.UUID,
         status: ProcessingStatus,
         raw_text: Optional[str] = None,
+        detected_document_type: Optional[str] = None,
     ) -> Optional[Document]:
         document = await self.get_by_id(document_id)
         if not document:
@@ -41,6 +48,11 @@ class DocumentRepository:
         document.processing_status = status
         if raw_text is not None:
             document.raw_text = raw_text
+        if detected_document_type is not None and document.document_type is None:
+            try:
+                document.document_type = DocumentType(detected_document_type)
+            except ValueError:
+                pass  # unknown type returned by classifier — leave as None
         self.session.add(document)
         await self.session.commit()
         await self.session.refresh(document)

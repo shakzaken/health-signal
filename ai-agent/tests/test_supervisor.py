@@ -10,7 +10,6 @@ from rag.query_chain import QueryChain
 
 def make_rag_mock(answer: str = "RAG answer") -> MagicMock:
     rag = MagicMock(spec=QueryChain)
-    # answer() accepts an optional config kwarg
     rag.answer = AsyncMock(return_value={"answer": answer, "sources": []})
     return rag
 
@@ -20,19 +19,32 @@ def make_llm_mock(route: str = "rag", answer: str = "LLM answer") -> MagicMock:
 
     llm = MagicMock()
 
-    # with_structured_output returns a chain — ainvoke returns a real RouteDecision
     classify_chain = MagicMock()
     classify_chain.ainvoke = AsyncMock(return_value=RouteDecision(route=route))
     llm.with_structured_output.return_value = classify_chain
 
-    # bind_tools returns a runnable — ainvoke returns a response with no tool_calls (final answer)
     bound = MagicMock()
     bound.ainvoke = AsyncMock(return_value=MagicMock(content=answer, tool_calls=[]))
     llm.bind_tools.return_value = bound
 
-    # ainvoke used directly (e.g. in RAG chain)
     llm.ainvoke = AsyncMock(return_value=MagicMock(content=answer))
     return llm
+
+
+def patch_httpx():
+    """Patch httpx.AsyncClient for agents that call the backend."""
+    mock_client = AsyncMock()
+    mock_client.get.return_value = MagicMock(
+        status_code=200,
+        json=MagicMock(return_value=[]),
+        raise_for_status=MagicMock(),
+    )
+    mock_client.post.return_value = MagicMock(
+        status_code=200,
+        json=MagicMock(return_value={"answer": "search result", "sources": []}),
+        raise_for_status=MagicMock(),
+    )
+    return mock_client
 
 
 @pytest.mark.asyncio
@@ -40,15 +52,8 @@ async def test_supervisor_routes_lab_question_to_lab_agent():
     llm = make_llm_mock(route="lab_analysis", answer="Your hemoglobin is normal.")
     rag = make_rag_mock()
 
-    with patch("agents.lab_analysis.httpx.AsyncClient") as mock_client_cls:
-        mock_client = AsyncMock()
-        mock_client_cls.return_value.__aenter__.return_value = mock_client
-        mock_client.get.return_value = MagicMock(
-            status_code=200,
-            json=MagicMock(return_value=[]),
-            raise_for_status=MagicMock(),
-        )
-
+    with patch("agents.lab_analysis.httpx.AsyncClient") as mock_cls:
+        mock_cls.return_value.__aenter__.return_value = patch_httpx()
         supervisor = Supervisor(llm=llm, rag_chain=rag, backend_url="http://localhost:8000")
         result = await supervisor.run("What is my hemoglobin?")
 
@@ -66,6 +71,34 @@ async def test_supervisor_routes_general_question_to_rag():
 
     assert result["answer"] == "RAG answer about diet"
     rag.answer.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_supervisor_routes_pattern_question_to_pattern_agent():
+    llm = make_llm_mock(route="pattern_detection", answer="Fatigue correlates with low Vitamin D.")
+    rag = make_rag_mock()
+
+    with patch("agents.pattern_detection.httpx.AsyncClient") as mock_cls:
+        mock_cls.return_value.__aenter__.return_value = patch_httpx()
+        supervisor = Supervisor(llm=llm, rag_chain=rag, backend_url="http://localhost:8000")
+        result = await supervisor.run("Did my fatigue correlate with low Vitamin D?")
+
+    assert "answer" in result
+    rag.answer.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_supervisor_routes_timeline_question_to_timeline_agent():
+    llm = make_llm_mock(route="timeline", answer="In the last 6 months you had 2 blood tests.")
+    rag = make_rag_mock()
+
+    with patch("agents.timeline.httpx.AsyncClient") as mock_cls:
+        mock_cls.return_value.__aenter__.return_value = patch_httpx()
+        supervisor = Supervisor(llm=llm, rag_chain=rag, backend_url="http://localhost:8000")
+        result = await supervisor.run("What happened to my health in the last 6 months?")
+
+    assert "answer" in result
+    rag.answer.assert_not_called()
 
 
 @pytest.mark.asyncio

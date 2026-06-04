@@ -14,7 +14,7 @@ router = APIRouter(prefix="/ingest", tags=["ingest"])
 class IngestRequest(BaseModel):
     document_id: str
     file_path: str
-    document_type: str
+    document_type: Optional[str] = None
     source_date: Optional[str] = None
     filename: str = ""
 
@@ -25,6 +25,9 @@ class IngestResponse(BaseModel):
     chunks_stored: int = 0
     error: Optional[str] = None
     lab_result: Optional[dict[str, Any]] = None
+    symptom_data: Optional[dict[str, Any]] = None
+    supplement_data: Optional[dict[str, Any]] = None
+    detected_document_type: Optional[str] = None
 
 
 @router.post("", response_model=IngestResponse)
@@ -48,4 +51,7 @@ async def ingest_document(
         chunks_stored=result.get("chunks_stored", 0),
         error=result.get("error"),
         lab_result=result.get("lab_result"),
+        symptom_data=result.get("symptom_data"),
+        supplement_data=result.get("supplement_data"),
+        detected_document_type=result.get("detected_document_type"),
     )

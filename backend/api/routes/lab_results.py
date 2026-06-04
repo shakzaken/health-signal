@@ -50,7 +50,7 @@ async def get_marker_history(
     session: AsyncSession = Depends(get_session),
 ):
     repo = LabResultRepository(session)
-    markers = await repo.get_marker_history(marker_name)
+    rows = await repo.get_marker_history(marker_name)
     return MarkerHistoryResponse(
         name=marker_name,
         history=[
@@ -64,8 +64,9 @@ async def get_marker_history(
                 reference_high=m.reference_high,
                 status=m.status,
                 created_at=m.created_at,
+                test_date=test_date,
             )
-            for m in markers
+            for m, test_date in rows
         ],
     )
 

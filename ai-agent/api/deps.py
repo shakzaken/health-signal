@@ -22,7 +22,10 @@ from rag.qdrant_client import ensure_collection, get_qdrant_client
 from rag.query_chain import QueryChain
 from rag.retriever import Retriever
 from rag.writer import QdrantWriter
+from tools.document_classifier import DocumentClassifier
 from tools.lab_extractor import LabExtractor
+from tools.supplement_extractor import SupplementExtractor
+from tools.symptom_extractor import SymptomExtractor
 
 
 @lru_cache
@@ -42,6 +45,7 @@ def get_llm() -> ChatOpenAI:
 
 
 def get_ingestion_pipeline() -> IngestionPipeline:
+    llm = get_llm()
     client = get_qdrant_client()
     ensure_collection(client)
     return IngestionPipeline(
@@ -49,7 +53,10 @@ def get_ingestion_pipeline() -> IngestionPipeline:
         chunker=get_chunker(),
         embedder=get_embedder(),
         writer=QdrantWriter(client),
-        lab_extractor=LabExtractor(get_llm()),
+        lab_extractor=LabExtractor(llm),
+        symptom_extractor=SymptomExtractor(llm),
+        supplement_extractor=SupplementExtractor(llm),
+        classifier=DocumentClassifier(llm),
     )
 
 
