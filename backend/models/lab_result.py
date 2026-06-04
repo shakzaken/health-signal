@@ -2,7 +2,7 @@ import uuid
 from enum import Enum
 from typing import Optional
 
-from datetime import UTC, date, datetime
+from datetime import date, datetime, timezone
 from sqlalchemy import Enum as SAEnum, Float, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -24,7 +24,7 @@ class LabResult(Base):
     document_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("documents.id"))
     test_date: Mapped[date]
     lab_name: Mapped[Optional[str]] = mapped_column(nullable=True, default=None)
-    created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(UTC).replace(tzinfo=None))
+    created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(timezone.utc))
 
 
 class LabMarker(Base):
@@ -40,4 +40,4 @@ class LabMarker(Base):
     status: Mapped[Optional[MarkerStatus]] = mapped_column(
         SAEnum(MarkerStatus, native_enum=False), nullable=True, default=None
     )
-    created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(UTC).replace(tzinfo=None))
+    created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(timezone.utc))

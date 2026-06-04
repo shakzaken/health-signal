@@ -1,9 +1,10 @@
-import httpx
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
 from langchain_core.runnables.config import RunnableConfig
-from langchain_core.tools import tool
 
+from agents.tools.lab_tools import make_fetch_lab_results
+from agents.tools.supplement_tools import make_fetch_all_supplements
+from agents.tools.timeline_tools import make_fetch_timeline
 from core.logger import get_logger
 
 logger = get_logger(__name__)
@@ -47,76 +48,11 @@ class TimelineAgent:
         self._llm_with_tools = llm.bind_tools(self._tools)
 
     def _build_tools(self) -> list:
-        backend_url = self._backend_url
-
-        @tool
-        async def fetch_timeline(from_date: str, to_date: str) -> str:
-            """
-            Fetch all health timeline events within a date range.
-            Returns lab results, symptoms, and supplement changes in chronological order.
-            from_date and to_date must be ISO date strings (YYYY-MM-DD).
-            """
-            async with httpx.AsyncClient() as client:
-                response = await client.get(
-                    f"{backend_url}/timeline",
-                    params={"from": from_date, "to": to_date},
-                    timeout=10.0,
-                )
-                response.raise_for_status()
-                events = response.json()
-
-            if not events:
-                return f"No health events found between {from_date} and {to_date}."
-
-            lines = [f"Health timeline from {from_date} to {to_date}:"]
-            for e in sorted(events, key=lambda x: x["event_date"]):
-                lines.append(f"  [{e['event_date']}] {e['event_type'].upper()}: {e['summary']}")
-            return "\n".join(lines)
-
-        @tool
-        async def fetch_lab_results() -> str:
-            """Fetch all lab test results with their markers and dates for detailed context."""
-            async with httpx.AsyncClient() as client:
-                response = await client.get(f"{backend_url}/lab-results", timeout=10.0)
-                response.raise_for_status()
-                results = response.json()
-
-            if not results:
-                return "No lab results found."
-
-            lines = []
-            for result in results:
-                lines.append(f"\nTest date: {result.get('test_date', 'unknown')}")
-                if result.get("lab_name"):
-                    lines.append(f"Lab: {result['lab_name']}")
-                for marker in result.get("markers", []):
-                    ref = ""
-                    if marker.get("reference_low") is not None and marker.get("reference_high") is not None:
-                        ref = f" (normal: {marker['reference_low']}–{marker['reference_high']})"
-                    status = f" [{marker['status']}]" if marker.get("status") else ""
-                    lines.append(f"  • {marker['name']}: {marker['value']} {marker['unit']}{ref}{status}")
-            return "\n".join(lines)
-
-        @tool
-        async def fetch_all_supplements() -> str:
-            """Fetch all supplement entries with their start dates, stop dates, and reasons."""
-            async with httpx.AsyncClient() as client:
-                response = await client.get(f"{backend_url}/supplement-entries", timeout=10.0)
-                response.raise_for_status()
-                entries = response.json()
-
-            if not entries:
-                return "No supplement entries found."
-
-            lines = ["All supplements:"]
-            for e in entries:
-                started = e.get("started_at", "unknown")
-                stopped = f" — stopped {e['stopped_at']}" if e.get("stopped_at") else " (ongoing)"
-                notes = f" | reason: {e['notes']}" if e.get("notes") else ""
-                lines.append(f"  • {e['name']} {e['dosage']} {e['frequency']} — started {started}{stopped}{notes}")
-            return "\n".join(lines)
-
-        return [fetch_timeline, fetch_lab_results, fetch_all_supplements]
+        return [
+            make_fetch_timeline(self._backend_url),
+            make_fetch_lab_results(self._backend_url),
+            make_fetch_all_supplements(self._backend_url),
+        ]
 
     async def summarize(
         self,

@@ -1,7 +1,7 @@
 import uuid
 from enum import Enum
 
-from datetime import UTC, date, datetime
+from datetime import date, datetime, timezone
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -25,4 +25,4 @@ class TimelineEvent(Base):
     reference_table: Mapped[str]
     event_date: Mapped[date]
     summary: Mapped[str]
-    created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(UTC).replace(tzinfo=None))
+    created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(timezone.utc))

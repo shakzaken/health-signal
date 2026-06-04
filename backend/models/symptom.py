@@ -2,7 +2,7 @@ import uuid
 from enum import Enum
 from typing import Optional
 
-from datetime import UTC, date, datetime
+from datetime import date, datetime, timezone
 from sqlalchemy import Enum as SAEnum, ForeignKey, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -28,4 +28,4 @@ class SymptomEntry(Base):
     )
     occurred_at: Mapped[date]
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True, default=None)
-    created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(UTC).replace(tzinfo=None))
+    created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(timezone.utc))

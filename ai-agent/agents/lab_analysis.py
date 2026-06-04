@@ -1,9 +1,8 @@
-import httpx
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
 from langchain_core.runnables.config import RunnableConfig
-from langchain_core.tools import tool
 
+from agents.tools.lab_tools import make_fetch_lab_results, make_get_marker_history
 from core.logger import get_logger
 
 logger = get_logger(__name__)
@@ -11,7 +10,7 @@ logger = get_logger(__name__)
 SYSTEM_PROMPT = """You are a personal health assistant specializing in lab result analysis.
 
 You have access to the following tools:
-- fetch_all_lab_results: retrieves the user's full lab history with all markers
+- fetch_lab_results: retrieves the user's full lab history with all markers
 - get_marker_history: retrieves the historical values for a specific marker by name
 
 Guidelines:
@@ -43,57 +42,10 @@ class LabAnalysisAgent:
         self._llm_with_tools = llm.bind_tools(self._tools)
 
     def _build_tools(self) -> list:
-        backend_url = self._backend_url
-
-        @tool
-        async def fetch_all_lab_results() -> str:
-            """Fetch all lab test results with their markers from the database."""
-            async with httpx.AsyncClient() as client:
-                response = await client.get(f"{backend_url}/lab-results", timeout=10.0)
-                response.raise_for_status()
-                results = response.json()
-
-            if not results:
-                return "No lab results found."
-
-            lines = []
-            for result in results:
-                lines.append(f"\nTest date: {result.get('test_date', 'unknown')}")
-                if result.get("lab_name"):
-                    lines.append(f"Lab: {result['lab_name']}")
-                for marker in result.get("markers", []):
-                    ref = ""
-                    if marker.get("reference_low") is not None and marker.get("reference_high") is not None:
-                        ref = f" (normal: {marker['reference_low']}–{marker['reference_high']})"
-                    status = f" [{marker['status']}]" if marker.get("status") else ""
-                    lines.append(f"  • {marker['name']}: {marker['value']} {marker['unit']}{ref}{status}")
-            return "\n".join(lines)
-
-        @tool
-        async def get_marker_history(marker_name: str) -> str:
-            """Get historical values for a specific lab marker by name (e.g. 'Cholesterol', 'Hemoglobin')."""
-            async with httpx.AsyncClient() as client:
-                response = await client.get(
-                    f"{backend_url}/lab-results/markers/{marker_name}/history",
-                    timeout=10.0,
-                )
-                response.raise_for_status()
-                history = response.json().get("history", [])
-
-            if not history:
-                return f"No historical data found for marker: {marker_name}"
-
-            lines = [f"History for {marker_name}:"]
-            for entry in history:
-                ref = ""
-                if entry.get("reference_low") is not None and entry.get("reference_high") is not None:
-                    ref = f" (normal: {entry['reference_low']}–{entry['reference_high']})"
-                status = f" [{entry['status']}]" if entry.get("status") else ""
-                date_label = entry.get("test_date") or entry.get("created_at", "unknown date")
-                lines.append(f"  • {date_label}: {entry['value']} {entry['unit']}{ref}{status}")
-            return "\n".join(lines)
-
-        return [fetch_all_lab_results, get_marker_history]
+        return [
+            make_fetch_lab_results(self._backend_url),
+            make_get_marker_history(self._backend_url),
+        ]
 
     async def analyze(
         self,

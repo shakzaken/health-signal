@@ -1,7 +1,7 @@
 import uuid
 from typing import Optional
 
-from datetime import UTC, date, datetime
+from datetime import date, datetime, timezone
 from sqlalchemy import ForeignKey, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -21,4 +21,4 @@ class SupplementEntry(Base):
     started_at: Mapped[Optional[date]] = mapped_column(nullable=True, default=None)
     stopped_at: Mapped[Optional[date]] = mapped_column(nullable=True, default=None)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True, default=None)
-    created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(UTC).replace(tzinfo=None))
+    created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(timezone.utc))

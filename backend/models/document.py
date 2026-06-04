@@ -2,7 +2,7 @@ import uuid
 from enum import Enum
 from typing import Optional
 
-from datetime import UTC, date, datetime
+from datetime import date, datetime, timezone
 from sqlalchemy import Enum as SAEnum, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -34,7 +34,7 @@ class Document(Base):
     file_path: Mapped[str]
     document_type: Mapped[Optional[DocumentType]] = mapped_column(SAEnum(DocumentType, native_enum=False), nullable=True, default=None)
     source_date: Mapped[Optional[date]] = mapped_column(nullable=True, default=None)
-    uploaded_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(UTC).replace(tzinfo=None))
+    uploaded_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(timezone.utc))
     processing_status: Mapped[ProcessingStatus] = mapped_column(
         SAEnum(ProcessingStatus, native_enum=False),
         default=ProcessingStatus.pending,

@@ -1,9 +1,11 @@
-import httpx
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
 from langchain_core.runnables.config import RunnableConfig
-from langchain_core.tools import tool
 
+from agents.tools.lab_tools import make_fetch_lab_results
+from agents.tools.rag_tools import make_search_documents
+from agents.tools.supplement_tools import make_fetch_supplements_in_range
+from agents.tools.symptom_tools import make_fetch_symptoms_in_range
 from core.logger import get_logger
 
 logger = get_logger(__name__)
@@ -48,99 +50,14 @@ class PatternDetectionAgent:
         self._llm_with_tools = llm.bind_tools(self._tools)
 
     def _build_tools(self) -> list:
-        backend_url = self._backend_url
-
-        @tool
-        async def fetch_lab_results() -> str:
-            """Fetch all lab test results with their markers and test dates."""
-            async with httpx.AsyncClient() as client:
-                response = await client.get(f"{backend_url}/lab-results", timeout=10.0)
-                response.raise_for_status()
-                results = response.json()
-
-            if not results:
-                return "No lab results found."
-
-            lines = []
-            for result in results:
-                lines.append(f"\nTest date: {result.get('test_date', 'unknown')}")
-                if result.get("lab_name"):
-                    lines.append(f"Lab: {result['lab_name']}")
-                for marker in result.get("markers", []):
-                    ref = ""
-                    if marker.get("reference_low") is not None and marker.get("reference_high") is not None:
-                        ref = f" (normal: {marker['reference_low']}–{marker['reference_high']})"
-                    status = f" [{marker['status']}]" if marker.get("status") else ""
-                    lines.append(f"  • {marker['name']}: {marker['value']} {marker['unit']}{ref}{status}")
-            return "\n".join(lines)
-
-        @tool
-        async def fetch_symptoms_in_range(from_date: str, to_date: str) -> str:
-            """
-            Fetch symptom entries within a date range.
-            from_date and to_date must be ISO date strings (YYYY-MM-DD).
-            """
-            async with httpx.AsyncClient() as client:
-                response = await client.get(
-                    f"{backend_url}/symptom-entries",
-                    params={"from": from_date, "to": to_date},
-                    timeout=10.0,
-                )
-                response.raise_for_status()
-                entries = response.json()
-
-            if not entries:
-                return f"No symptoms found between {from_date} and {to_date}."
-
-            lines = [f"Symptoms between {from_date} and {to_date}:"]
-            for e in entries:
-                severity = f" ({e['severity']})" if e.get("severity") else ""
-                notes = f" — {e['notes']}" if e.get("notes") else ""
-                lines.append(f"  • {e['occurred_at']}: {e['symptom_name']}{severity}{notes}")
-            return "\n".join(lines)
-
-        @tool
-        async def fetch_supplements_in_range(from_date: str, to_date: str) -> str:
-            """
-            Fetch supplement entries active within a date range.
-            from_date and to_date must be ISO date strings (YYYY-MM-DD).
-            """
-            async with httpx.AsyncClient() as client:
-                response = await client.get(
-                    f"{backend_url}/supplement-entries",
-                    params={"from": from_date, "to": to_date},
-                    timeout=10.0,
-                )
-                response.raise_for_status()
-                entries = response.json()
-
-            if not entries:
-                return f"No supplements found between {from_date} and {to_date}."
-
-            lines = [f"Supplements between {from_date} and {to_date}:"]
-            for e in entries:
-                stopped = f" (stopped {e['stopped_at']})" if e.get("stopped_at") else " (ongoing)"
-                started = e.get("started_at", "unknown start")
-                lines.append(f"  • {e['name']} {e['dosage']} {e['frequency']} — started {started}{stopped}")
-            return "\n".join(lines)
-
-        @tool
-        async def search_documents(query: str) -> str:
-            """
-            Search across all uploaded health documents using semantic search.
-            Useful for finding context that isn't captured in structured data.
-            """
-            async with httpx.AsyncClient() as client:
-                response = await client.post(
-                    f"{backend_url.replace(':8000', ':8001')}/query",
-                    json={"question": query},
-                    timeout=30.0,
-                )
-                response.raise_for_status()
-                result = response.json()
-            return result.get("answer", "No relevant documents found.")
-
-        return [fetch_lab_results, fetch_symptoms_in_range, fetch_supplements_in_range, search_documents]
+        # search_documents calls the ai-agent query endpoint, not the backend
+        ai_agent_url = self._backend_url.replace(":8000", ":8001")
+        return [
+            make_fetch_lab_results(self._backend_url),
+            make_fetch_symptoms_in_range(self._backend_url),
+            make_fetch_supplements_in_range(self._backend_url),
+            make_search_documents(ai_agent_url),
+        ]
 
     async def analyze(
         self,
