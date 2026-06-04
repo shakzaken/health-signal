@@ -1,14 +1,14 @@
 from langchain_core.language_models.chat_models import BaseChatModel
-from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
+from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.runnables.config import RunnableConfig
+from langgraph.graph.state import CompiledStateGraph
 
+from agents.agent_state import SubAgentState
+from agents.graph_factory import create_tool_calling_graph
 from agents.tools.lab_tools import make_fetch_lab_results
 from agents.tools.rag_tools import make_search_documents
 from agents.tools.supplement_tools import make_fetch_supplements_in_range
 from agents.tools.symptom_tools import make_fetch_symptoms_in_range
-from core.logger import get_logger
-
-logger = get_logger(__name__)
 
 SYSTEM_PROMPT = """You are a personal health pattern analyst.
 
@@ -38,60 +38,27 @@ Additional guidelines:
 
 class PatternDetectionAgent:
     """
-    Uses LangChain tool calling to fetch lab results, symptoms, and supplements
-    across a time window and detect temporal correlations.
+    LangGraph-based agent for detecting temporal patterns across lab results,
+    symptoms, and supplements. Exposes a compiled subgraph the supervisor invokes directly.
     """
 
     def __init__(self, llm: BaseChatModel, backend_url: str) -> None:
-        self._llm = llm
-        self._backend_url = backend_url
-        self._tools = self._build_tools()
-        self._tools_by_name = {t.name: t for t in self._tools}
-        self._llm_with_tools = llm.bind_tools(self._tools)
-
-    def _build_tools(self) -> list:
         # search_documents calls the ai-agent query endpoint, not the backend
-        ai_agent_url = self._backend_url.replace(":8000", ":8001")
-        return [
-            make_fetch_lab_results(self._backend_url),
-            make_fetch_symptoms_in_range(self._backend_url),
-            make_fetch_supplements_in_range(self._backend_url),
+        ai_agent_url = backend_url.replace(":8000", ":8001")
+        tools = [
+            make_fetch_lab_results(backend_url),
+            make_fetch_symptoms_in_range(backend_url),
+            make_fetch_supplements_in_range(backend_url),
             make_search_documents(ai_agent_url),
         ]
+        self.graph: CompiledStateGraph = create_tool_calling_graph(llm, tools)
 
-    async def analyze(
-        self,
-        question: str,
-        config: RunnableConfig | None = None,
-    ) -> dict:
-        """
-        Run a tool-calling loop to gather health data across multiple types,
-        then reason over temporal patterns and correlations.
-        """
-        messages = [
-            SystemMessage(content=SYSTEM_PROMPT),
-            HumanMessage(content=question),
-        ]
+    def initial_state(self, question: str) -> SubAgentState:
+        return {
+            "messages": [SystemMessage(content=SYSTEM_PROMPT), HumanMessage(content=question)],
+            "sources": [],
+        }
 
-        while True:
-            response = await self._llm_with_tools.ainvoke(messages, config=config)
-            messages.append(response)
-
-            if not response.tool_calls:
-                break
-
-            for tool_call in response.tool_calls:
-                tool_name = tool_call["name"]
-                tool_fn = self._tools_by_name.get(tool_name)
-                if tool_fn is None:
-                    result = f"Unknown tool: {tool_name}"
-                else:
-                    try:
-                        result = await tool_fn.ainvoke(tool_call["args"], config=config)
-                    except Exception as e:
-                        result = f"Tool error: {e}"
-                        logger.warning(f"Tool call failed — tool={tool_name} error={e}")
-
-                messages.append(ToolMessage(content=str(result), tool_call_id=tool_call["id"]))
-
-        return {"answer": response.content, "sources": []}
+    async def analyze(self, question: str, config: RunnableConfig | None = None) -> dict:
+        final_state = await self.graph.ainvoke(self.initial_state(question), config=config)
+        return {"answer": final_state["messages"][-1].content, "sources": final_state["sources"]}

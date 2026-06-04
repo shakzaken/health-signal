@@ -59,11 +59,14 @@ class AgentState(TypedDict):
 class Supervisor:
     """
     LangGraph-based supervisor that classifies the user's question and routes
-    it to the appropriate agent:
-      - lab_analysis      → LabAnalysisAgent (structured PostgreSQL lab data)
-      - pattern_detection → PatternDetectionAgent (cross-domain temporal correlations)
-      - timeline          → TimelineAgent (chronological health narrative)
+    it to the appropriate sub-agent graph:
+      - lab_analysis      → LabAnalysisAgent subgraph
+      - pattern_detection → PatternDetectionAgent subgraph
+      - timeline          → TimelineAgent subgraph
       - rag               → QueryChain (semantic Qdrant search)
+
+    Each sub-agent is a compiled LangGraph that the supervisor invokes directly,
+    giving full end-to-end trace nesting in LangSmith.
     """
 
     def __init__(
@@ -82,7 +85,6 @@ class Supervisor:
     # ── Graph nodes ──────────────────────────────────────────────────────────
 
     async def _classify(self, state: AgentState, config: RunnableConfig) -> AgentState:
-        """Classify the question and set the route."""
         classifier = self._llm.with_structured_output(RouteDecision)
         messages = [
             SystemMessage(content=CLASSIFY_PROMPT),
@@ -92,21 +94,27 @@ class Supervisor:
             decision: RouteDecision = await classifier.ainvoke(messages, config=config)
             route = decision.route
         except Exception:
-            route = "rag"  # safe fallback
+            route = "rag"
         logger.info(f"Supervisor classified question → route={route}")
         return {**state, "route": route}
 
     async def _run_lab_analysis(self, state: AgentState, config: RunnableConfig) -> AgentState:
-        result = await self._lab_agent.analyze(question=state["question"], config=config)
-        return {**state, "answer": result["answer"], "sources": result["sources"]}
+        final = await self._lab_agent.graph.ainvoke(
+            self._lab_agent.initial_state(state["question"]), config=config
+        )
+        return {**state, "answer": final["messages"][-1].content, "sources": final["sources"]}
 
     async def _run_pattern_detection(self, state: AgentState, config: RunnableConfig) -> AgentState:
-        result = await self._pattern_agent.analyze(question=state["question"], config=config)
-        return {**state, "answer": result["answer"], "sources": result["sources"]}
+        final = await self._pattern_agent.graph.ainvoke(
+            self._pattern_agent.initial_state(state["question"]), config=config
+        )
+        return {**state, "answer": final["messages"][-1].content, "sources": final["sources"]}
 
     async def _run_timeline(self, state: AgentState, config: RunnableConfig) -> AgentState:
-        result = await self._timeline_agent.summarize(question=state["question"], config=config)
-        return {**state, "answer": result["answer"], "sources": result["sources"]}
+        final = await self._timeline_agent.graph.ainvoke(
+            self._timeline_agent.initial_state(state["question"]), config=config
+        )
+        return {**state, "answer": final["messages"][-1].content, "sources": final["sources"]}
 
     async def _run_rag(self, state: AgentState, config: RunnableConfig) -> AgentState:
         result = await self._rag_chain.answer(
@@ -159,7 +167,6 @@ class Supervisor:
         user_id: str = "default",
         document_type: str | None = None,
     ) -> dict:
-        """Route the question to the right agent and return the answer."""
         initial_state: AgentState = {
             "question": question,
             "user_id": user_id,
