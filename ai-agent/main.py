@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 
-from api.routes import health, ingest, query
+from api.routes import health, ingest, query, report
 from core.config import settings
 from core.logger import get_logger
 from rag.qdrant_client import ensure_collection, get_qdrant_client
@@ -36,6 +36,7 @@ app = FastAPI(
 app.include_router(health.router)
 app.include_router(ingest.router)
 app.include_router(query.router)
+app.include_router(report.router)
 
 
 @app.middleware("http")

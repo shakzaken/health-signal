@@ -98,3 +98,47 @@ else:
 ```
 
 The extra LLM call only fires for non-English queries and is fast (single short translation).
+
+---
+
+## 4. Conversation History Growth — Sending All Messages to the LLM Is Unsustainable
+
+**Symptom**
+A naive implementation of conversational memory sends the full conversation history to the LLM on every query. After a long session this means hundreds of messages per request, leading to:
+- High token cost on every query
+- Eventually hitting the LLM's context window limit and hard-failing
+
+**Cause**
+Conversation history grows unboundedly. There is no mechanism to compress or trim it, so the payload sent to the LLM grows linearly with the number of turns.
+
+**Solution**
+**Summary + recent window** — maintain two things per session:
+
+1. A **rolling summary** of the older conversation — a short paragraph written by an LLM describing what the user has been asking about ("The user has been investigating low B12 and iron trends, and asked whether fatigue could be related").
+2. The **last N messages verbatim** (e.g. the last 6 turns) — enough for the agent to follow immediate context.
+
+On every query, the LLM receives: `[summary] + [last N messages] + [new question]`. The total size is bounded regardless of how long the conversation has been running.
+
+The summary is regenerated whenever the session grows past a threshold (e.g. every 10 new turns). The oldest messages beyond the window are compressed into an updated summary and discarded from the verbatim history.
+
+**DB schema change**
+The `conversations` table stores both the individual messages and the session summary:
+
+```
+id          UUID
+session_id  UUID
+user_id     TEXT
+role        "user" | "assistant"
+content     TEXT
+created_at  TIMESTAMP
+```
+
+```
+conversation_sessions
+  session_id   UUID (PK)
+  user_id      TEXT
+  summary      TEXT    ← rolling LLM-generated summary of older turns
+  updated_at   TIMESTAMP
+```
+
+The agent reads `summary + last N messages` from these two tables on each request. The summary compression step runs as a lightweight async background task after the agent responds, so it never adds latency to the user-facing query.

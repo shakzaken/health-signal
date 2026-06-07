@@ -1,4 +1,5 @@
 import os
+import uuid
 
 import httpx
 import gradio as gr
@@ -24,7 +25,6 @@ def upload_document(file, source_date: str) -> str:
         return "Please select a file to upload."
 
     try:
-        # Gradio 4+ returns a filepath string; older versions returned an object with .name
         file_path = file if isinstance(file, str) else file.name
         filename = os.path.basename(file_path)
 
@@ -89,13 +89,23 @@ def check_document_status(document_id: str) -> str:
         return f"Error: {e}"
 
 
-# ── Query tab ────────────────────────────────────────────────────────────────
+# ── Ask tab (conversational chat) ────────────────────────────────────────────
 
-def ask_question(question: str, document_type_filter: str) -> tuple[str, str]:
+def ask_question(
+    question: str,
+    history: list[dict],
+    session_id: str,
+    document_type_filter: str,
+) -> tuple[list[dict], str, str]:
+    """Send a question to the supervisor and update the chat history."""
     if not question.strip():
-        return "Please enter a question.", ""
+        return history, "", ""
+
     try:
-        payload = {"question": question.strip()}
+        payload: dict = {
+            "question": question.strip(),
+            "session_id": session_id,
+        }
         if document_type_filter and document_type_filter != "All":
             payload["document_type"] = document_type_filter
 
@@ -108,7 +118,6 @@ def ask_question(question: str, document_type_filter: str) -> tuple[str, str]:
         if response.status_code == 200:
             data = response.json()
             answer = data["answer"]
-
             sources_text = ""
             if data["sources"]:
                 sources_text = "\n\n".join(
@@ -119,19 +128,56 @@ def ask_question(question: str, document_type_filter: str) -> tuple[str, str]:
             else:
                 sources_text = "No source chunks found."
 
-            return answer, sources_text
+            history = history + [
+                {"role": "user", "content": question.strip()},
+                {"role": "assistant", "content": answer},
+            ]
+            return history, "", sources_text
         else:
-            return f"Error: {response.status_code}\n{response.text}", ""
+            error_msg = f"Error {response.status_code}: {response.text}"
+            history = history + [
+                {"role": "user", "content": question.strip()},
+                {"role": "assistant", "content": error_msg},
+            ]
+            return history, "", ""
 
     except Exception as e:
-        return f"Error: {e}", ""
+        error_msg = f"Error: {e}"
+        history = history + [
+            {"role": "user", "content": question.strip()},
+            {"role": "assistant", "content": error_msg},
+        ]
+        return history, "", ""
 
 
-# ── Gradio UI ────────────────────────────────────────────────────────────────
+def new_conversation() -> tuple[list, str]:
+    """Reset the chat and generate a fresh session ID."""
+    return [], str(uuid.uuid4())
+
+
+# ── Report tab ────────────────────────────────────────────────────────────────
+
+def generate_report(period_days: int) -> str:
+    try:
+        response = httpx.post(
+            f"{settings.ai_agent_url}/report/generate",
+            json={"user_id": "default", "period_days": period_days},
+            timeout=180.0,
+        )
+        if response.status_code == 200:
+            return response.json()["report"]
+        else:
+            return f"❌ Error {response.status_code}: {response.text}"
+    except Exception as e:
+        return f"❌ Error: {e}"
+
+
+# ── Gradio UI ─────────────────────────────────────────────────────────────────
 
 with gr.Blocks(title="HealthSignal") as demo:
     gr.Markdown("# 🏥 HealthSignal\nYour personal health intelligence assistant.")
 
+    # ── Upload tab ──────────────────────────────────────────────────────────
     with gr.Tab("📤 Upload"):
         gr.Markdown("### Upload a health document")
         with gr.Row():
@@ -156,36 +202,87 @@ with gr.Blocks(title="HealthSignal") as demo:
 
         gr.Markdown("### Check document status")
         with gr.Row():
-            doc_id_input = gr.Textbox(label="Document ID", placeholder="Paste document ID here")
+            doc_id_input = gr.Textbox(
+                label="Document ID", placeholder="Paste document ID here"
+            )
             check_btn = gr.Button("Check status")
         status_output = gr.Textbox(label="Status", lines=5)
-        check_btn.click(fn=check_document_status, inputs=doc_id_input, outputs=status_output)
+        check_btn.click(
+            fn=check_document_status, inputs=doc_id_input, outputs=status_output
+        )
 
+    # ── Ask tab ─────────────────────────────────────────────────────────────
     with gr.Tab("💬 Ask"):
-        gr.Markdown("### Ask a question about your health data")
+        gr.Markdown(
+            "### Chat with your health data\n"
+            "Ask follow-up questions — the assistant remembers the conversation."
+        )
+
+        # session_id persists across turns in this tab
+        session_id_state = gr.State(str(uuid.uuid4()))
+
+        chatbot = gr.Chatbot(label="Conversation", height=450)
+
         with gr.Row():
-            with gr.Column(scale=2):
-                question_input = gr.Textbox(
-                    label="Your question",
-                    placeholder="e.g. What changed in my latest blood test?",
-                    lines=3,
-                )
-                filter_dropdown = gr.Dropdown(
-                    choices=["All"] + DOCUMENT_TYPES,
-                    value="All",
-                    label="Filter by document type (optional)",
-                )
-                ask_btn = gr.Button("Ask", variant="primary")
-            with gr.Column(scale=3):
-                answer_output = gr.Textbox(label="Answer", lines=12)
+            question_input = gr.Textbox(
+                label="Your question",
+                placeholder="e.g. What changed in my latest blood test?",
+                lines=2,
+                scale=4,
+            )
+            with gr.Column(scale=1):
+                ask_btn = gr.Button("Send", variant="primary")
+                new_chat_btn = gr.Button("New conversation")
+
+        filter_dropdown = gr.Dropdown(
+            choices=["All"] + DOCUMENT_TYPES,
+            value="All",
+            label="Filter by document type (optional)",
+        )
 
         with gr.Accordion("📎 Source chunks used", open=False):
-            sources_output = gr.Textbox(label="Sources", lines=10)
+            sources_output = gr.Textbox(label="Sources", lines=8)
 
         ask_btn.click(
             fn=ask_question,
-            inputs=[question_input, filter_dropdown],
-            outputs=[answer_output, sources_output],
+            inputs=[question_input, chatbot, session_id_state, filter_dropdown],
+            outputs=[chatbot, question_input, sources_output],
+        )
+        question_input.submit(
+            fn=ask_question,
+            inputs=[question_input, chatbot, session_id_state, filter_dropdown],
+            outputs=[chatbot, question_input, sources_output],
+        )
+        new_chat_btn.click(
+            fn=new_conversation,
+            inputs=[],
+            outputs=[chatbot, session_id_state],
+        )
+
+    # ── Report tab ───────────────────────────────────────────────────────────
+    with gr.Tab("📋 Doctor Report"):
+        gr.Markdown(
+            "### Generate a doctor visit report\n"
+            "A structured summary of your recent abnormal markers, symptoms, supplement changes, "
+            "and suggested questions to ask your doctor."
+        )
+
+        with gr.Row():
+            period_slider = gr.Slider(
+                minimum=30,
+                maximum=365,
+                value=90,
+                step=30,
+                label="Period (days back from today)",
+            )
+            generate_btn = gr.Button("Generate Report", variant="primary")
+
+        report_output = gr.Textbox(label="Report", lines=30, max_lines=60)
+
+        generate_btn.click(
+            fn=generate_report,
+            inputs=[period_slider],
+            outputs=report_output,
         )
 
 
