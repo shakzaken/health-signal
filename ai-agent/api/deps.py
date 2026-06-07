@@ -11,6 +11,7 @@ from functools import lru_cache
 
 from langchain_openai import ChatOpenAI
 
+from agents.doctor_report import DoctorReportAgent
 from agents.supervisor import Supervisor
 from core.config import settings
 from ingestion.chunker import Chunker
@@ -68,3 +69,7 @@ def get_supervisor() -> Supervisor:
         llm=llm,
     )
     return Supervisor(llm=llm, rag_chain=rag_chain, backend_url=settings.backend_url)
+
+
+def get_doctor_report_agent() -> DoctorReportAgent:
+    return DoctorReportAgent(llm=get_llm(), backend_url=settings.backend_url)

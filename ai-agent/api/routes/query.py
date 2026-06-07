@@ -11,6 +11,7 @@ router = APIRouter(prefix="/query", tags=["query"])
 
 class QueryRequest(BaseModel):
     question: str
+    session_id: Optional[str] = None
     document_type: Optional[str] = None
 
 
@@ -35,6 +36,7 @@ async def query_documents(
 ):
     result = await supervisor.run(
         question=request.question,
+        session_id=request.session_id,
         document_type=request.document_type,
     )
     return QueryResponse(

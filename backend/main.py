@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
-from api.routes import documents, health, lab_results, supplements, symptoms, timeline
+from api.routes import conversations, documents, health, lab_results, supplements, symptoms, timeline
 from core.config import settings
 from core.logger import get_logger
 
@@ -32,6 +32,7 @@ app.include_router(lab_results.router)
 app.include_router(symptoms.router)
 app.include_router(supplements.router)
 app.include_router(timeline.router)
+app.include_router(conversations.router)
 
 
 @app.middleware("http")

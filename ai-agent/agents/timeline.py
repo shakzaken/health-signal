@@ -1,5 +1,5 @@
 from langchain_core.language_models.chat_models import BaseChatModel
-from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_core.runnables.config import RunnableConfig
 from langgraph.graph.state import CompiledStateGraph
 
@@ -48,11 +48,22 @@ class TimelineAgent:
         ]
         self.graph: CompiledStateGraph = create_tool_calling_graph(llm, tools)
 
-    def initial_state(self, question: str) -> SubAgentState:
-        return {
-            "messages": [SystemMessage(content=SYSTEM_PROMPT), HumanMessage(content=question)],
-            "sources": [],
-        }
+    def initial_state(
+        self,
+        question: str,
+        summary: str = "",
+        recent_history: list[dict] | None = None,
+    ) -> SubAgentState:
+        messages = [SystemMessage(content=SYSTEM_PROMPT)]
+        if summary:
+            messages.append(SystemMessage(content=f"Conversation context (summary of earlier turns):\n{summary}"))
+        for msg in (recent_history or []):
+            if msg["role"] == "user":
+                messages.append(HumanMessage(content=msg["content"]))
+            else:
+                messages.append(AIMessage(content=msg["content"]))
+        messages.append(HumanMessage(content=question))
+        return {"messages": messages, "sources": []}
 
     async def summarize(self, question: str, config: RunnableConfig | None = None) -> dict:
         final_state = await self.graph.ainvoke(self.initial_state(question), config=config)
