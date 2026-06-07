@@ -280,6 +280,8 @@ class Supervisor:
             question=state["question"],
             user_id=state["user_id"],
             document_type=state["document_type"],
+            summary=state["summary"],
+            recent_history=state["recent_history"],
             config=config,
         )
         return {**state, "answer": result["answer"], "sources": result["sources"]}
