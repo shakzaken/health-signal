@@ -1,5 +1,5 @@
 from langchain_core.language_models.chat_models import BaseChatModel
-from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_core.runnables.config import RunnableConfig
 
 from core.logger import get_logger
@@ -9,16 +9,19 @@ logger = get_logger(__name__)
 
 SYSTEM_PROMPT = """You are a personal health assistant helping a user understand their health data.
 
-You have access to the user's uploaded health documents including blood tests, lab results,
-doctor notes, symptom logs, and supplement records.
+You have access to:
+1. The user's uploaded health documents (blood tests, lab results, doctor notes, symptom logs, supplement records)
+2. The conversation history with the user (shown as prior messages in this conversation)
 
 Guidelines:
-- Explain findings in clear, simple language
+- Use BOTH the conversation history and the health documents to answer questions
+- If the user stated something earlier in the conversation (e.g. a preference, a fact about themselves), you can and should refer to it
+- Explain health findings in clear, simple language
 - Always present information as observations, not medical diagnoses
 - Highlight trends and changes over time when relevant
 - Suggest questions to ask a doctor when appropriate
 - Be calm and factual — avoid alarmist language
-- If the context does not contain enough information to answer, say so clearly
+- If neither the conversation history nor the health documents contain enough information to answer, say so clearly
 - Always answer in the same language the user asked the question in
 """
 
@@ -78,13 +81,15 @@ class QueryChain:
         question: str,
         user_id: str = "default",
         document_type: str | None = None,
+        summary: str = "",
+        recent_history: list[dict] | None = None,
         config: RunnableConfig | None = None,
     ) -> dict:
         """
         1. Retrieve chunks using the original question.
         2. If query is not English, also retrieve with an English translation and merge.
         3. Build context string from merged chunks.
-        4. Call the LLM with context + original question (answer in user's language).
+        4. Call the LLM with context + conversation history + original question.
         5. Return answer text and source chunks.
 
         config is threaded through every LLM call so all spans appear nested
@@ -110,23 +115,38 @@ class QueryChain:
         else:
             chunks = primary_chunks
 
-        if not chunks:
+        # Build the message list — inject conversation history before the question
+        messages: list = [SystemMessage(content=SYSTEM_PROMPT)]
+
+        if summary:
+            messages.append(SystemMessage(content=f"Summary of earlier conversation:\n{summary}"))
+
+        for msg in (recent_history or []):
+            if msg["role"] == "user":
+                messages.append(HumanMessage(content=msg["content"]))
+            else:
+                messages.append(AIMessage(content=msg["content"]))
+
+        # No document chunks and no conversation history → nothing to answer from
+        if not chunks and not (recent_history or summary):
             return {
                 "answer": "I couldn't find relevant information in your uploaded documents to answer that question.",
                 "sources": [],
             }
 
-        context = "\n\n---\n\n".join(
-            f"[{c['document_type']} | {c['source_date'] or 'unknown date'} | {c['filename']}]\n{c['text']}"
-            for c in chunks
-        )
+        # Add document context as a system message (if any) so the LLM can use
+        # BOTH the conversation history AND the retrieved chunks independently.
+        if chunks:
+            context = "\n\n---\n\n".join(
+                f"[{c['document_type']} | {c['source_date'] or 'unknown date'} | {c['filename']}]\n{c['text']}"
+                for c in chunks
+            )
+            messages.append(
+                SystemMessage(content=f"Relevant context from the user's health documents:\n\n{context}")
+            )
 
-        messages = [
-            SystemMessage(content=SYSTEM_PROMPT),
-            HumanMessage(
-                content=f"Context from the user's health documents:\n\n{context}\n\nQuestion: {question}"
-            ),
-        ]
+        # Current question always goes last as a plain HumanMessage
+        messages.append(HumanMessage(content=question))
 
         response = await self._llm.ainvoke(messages, config=config)
 
