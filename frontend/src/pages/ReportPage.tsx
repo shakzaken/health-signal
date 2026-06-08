@@ -1,5 +1,6 @@
 import { useReport } from '../hooks/useReport'
 import { ReportIcon, SparkIcon, CopyIcon, PulseIcon } from '../components/Icons'
+import { downloadReport } from '../utils/downloadReport'
 
 const PERIOD_OPTIONS = [
   { days: 30, label: '30 days', key: '30d' },
@@ -192,25 +193,54 @@ export default function ReportPage() {
             </button>
 
             {report && !isLoading && (
-              <button
-                onClick={copyReport}
-                style={{
-                  border: '1px solid var(--border-strong)',
-                  background: 'var(--surface)',
-                  color: 'var(--sub)',
-                  fontSize: 13,
-                  padding: '10px 15px',
-                  borderRadius: 'calc(var(--radius) * 0.7)',
-                  cursor: 'pointer',
-                  fontFamily: 'inherit',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 7,
-                }}
-              >
-                <CopyIcon size={14} color="var(--sub)" />
-                Copy
-              </button>
+              <>
+                <button
+                  onClick={copyReport}
+                  style={{
+                    border: '1px solid var(--border-strong)',
+                    background: 'var(--surface)',
+                    color: 'var(--sub)',
+                    fontSize: 13,
+                    padding: '10px 15px',
+                    borderRadius: 'calc(var(--radius) * 0.7)',
+                    cursor: 'pointer',
+                    fontFamily: 'inherit',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 7,
+                  }}
+                >
+                  <CopyIcon size={14} color="var(--sub)" />
+                  Copy
+                </button>
+
+                <button
+                  onClick={() => downloadReport(report, currentPeriod.label)}
+                  style={{
+                    border: '1px solid var(--border-strong)',
+                    background: 'var(--surface)',
+                    color: 'var(--sub)',
+                    fontSize: 13,
+                    padding: '10px 15px',
+                    borderRadius: 'calc(var(--radius) * 0.7)',
+                    cursor: 'pointer',
+                    fontFamily: 'inherit',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 7,
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = 'var(--accent)'
+                    e.currentTarget.style.color = 'var(--accent)'
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = 'var(--border-strong)'
+                    e.currentTarget.style.color = 'var(--sub)'
+                  }}
+                >
+                  ↓ Download as PDF
+                </button>
+              </>
             )}
           </div>
         </div>

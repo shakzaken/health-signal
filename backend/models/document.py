@@ -30,6 +30,7 @@ class Document(Base):
     __tablename__ = "documents"
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[Optional[str]] = mapped_column(nullable=True, default=None)
     filename: Mapped[str]
     file_path: Mapped[str]
     document_type: Mapped[Optional[DocumentType]] = mapped_column(SAEnum(DocumentType, native_enum=False), nullable=True, default=None)

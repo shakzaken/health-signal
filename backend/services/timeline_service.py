@@ -16,8 +16,9 @@ class TimelineService:
         self,
         from_date: Optional[date] = None,
         to_date: Optional[date] = None,
+        user_id: str | None = None,
     ) -> list[TimelineEvent]:
-        return await self.repo.list_events(from_date=from_date, to_date=to_date)
+        return await self.repo.list_events(from_date=from_date, to_date=to_date, user_id=user_id)
 
     async def create_event(
         self,

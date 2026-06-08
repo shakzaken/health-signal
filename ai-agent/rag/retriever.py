@@ -4,7 +4,6 @@ from qdrant_client.models import DatetimeRange, FieldCondition, Filter, MatchVal
 from ingestion.embedder import Embedder
 from rag.qdrant_client import COLLECTION_NAME
 
-DEFAULT_USER_ID = "default"
 TOP_K = 5
 
 
@@ -22,7 +21,7 @@ class Retriever:
     def retrieve(
         self,
         query: str,
-        user_id: str = DEFAULT_USER_ID,
+        user_id: str = "",
         document_type: str | None = None,
         date_from: str | None = None,
         date_to: str | None = None,

@@ -79,7 +79,7 @@ class QueryChain:
     async def answer(
         self,
         question: str,
-        user_id: str = "default",
+        user_id: str = "",
         document_type: str | None = None,
         summary: str = "",
         recent_history: list[dict] | None = None,
@@ -191,3 +191,89 @@ class QueryChain:
             "answer": response.content,
             "sources": chunks,
         }
+
+    async def build_context(
+        self,
+        question: str,
+        user_id: str = "",
+        document_type: str | None = None,
+        summary: str = "",
+        recent_history: list[dict] | None = None,
+        config: RunnableConfig | None = None,
+    ) -> dict:
+        """Build the prompt messages and retrieve chunks, WITHOUT calling the LLM.
+        Returns {"messages": [...], "sources": [...]} for the caller to use with astream."""
+        primary_chunks = self._retriever.retrieve(
+            question, user_id=user_id, document_type=document_type
+        )
+
+        if not self._is_english(question):
+            try:
+                english_query = await self._translate_to_english(question, config=config)
+                secondary_chunks = self._retriever.retrieve(
+                    english_query, user_id=user_id, document_type=document_type
+                )
+                chunks = self._merge_chunks(primary_chunks, secondary_chunks, top_k=5)
+            except Exception as e:
+                logger.warning(f"Translation for dual retrieval failed — {e}")
+                chunks = primary_chunks
+        else:
+            chunks = primary_chunks
+
+        messages: list = [SystemMessage(content=SYSTEM_PROMPT)]
+        has_history = bool(recent_history or summary)
+
+        if summary:
+            messages.append(SystemMessage(content=f"Summary of earlier conversation:\n{summary}"))
+
+        for msg in (recent_history or []):
+            if msg["role"] == "user":
+                messages.append(HumanMessage(content=msg["content"]))
+            else:
+                messages.append(AIMessage(content=msg["content"]))
+
+        if not chunks and not has_history:
+            # Return empty sources + a fixed "no info" message set
+            messages.append(HumanMessage(content=question))
+            return {"messages": messages, "sources": [], "no_context": True}
+
+        if not has_history:
+            messages.append(SystemMessage(
+                content=(
+                    "IMPORTANT: This is the very start of a new conversation. "
+                    "There is NO prior conversation history between you and the user. "
+                    "If the user asks what you were previously discussing, or refers to any "
+                    "earlier exchange, tell them clearly that this is a brand-new session "
+                    "with no previous context."
+                )
+            ))
+
+        if chunks:
+            context = "\n\n---\n\n".join(
+                f"[{c['document_type']} | {c['source_date'] or 'unknown date'} | {c['filename']}]\n{c['text']}"
+                for c in chunks
+            )
+            messages.append(
+                SystemMessage(content=f"Relevant context from the user's health documents:\n\n{context}")
+            )
+
+        if self._is_english(question):
+            messages.append(SystemMessage(
+                content=(
+                    "CRITICAL: The user's question is in English. "
+                    "You MUST reply in English only. "
+                    "Do NOT switch to Hebrew or any other language, "
+                    "even if the retrieved document excerpts are written in Hebrew."
+                )
+            ))
+        else:
+            messages.append(SystemMessage(
+                content=(
+                    "CRITICAL: The user's question is NOT in English. "
+                    "You MUST reply in the same language as the user's question. "
+                    "Do NOT switch to English."
+                )
+            ))
+
+        messages.append(HumanMessage(content=question))
+        return {"messages": messages, "sources": chunks, "no_context": False}

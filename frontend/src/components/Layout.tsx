@@ -2,6 +2,7 @@ import { type ReactNode } from 'react'
 import { type Tab } from './TabNav'
 import { type Session } from '../types'
 import { PulseIcon, ChatIcon, UploadIcon, ReportIcon } from './Icons'
+import { useAuth } from '../context/AuthContext'
 
 interface LayoutProps {
   activeTab: Tab
@@ -57,6 +58,7 @@ function NavItem({
 }
 
 export default function Layout({ activeTab, onTabChange, children, sessions, onRestoreSession }: LayoutProps) {
+  const { logout } = useAuth()
   return (
     <div
       style={{
@@ -217,6 +219,27 @@ export default function Layout({ activeTab, onTabChange, children, sessions, onR
           <div style={{ fontSize: 11, color: 'var(--faint)', marginTop: 2 }}>
             AI · not medical advice
           </div>
+          <button
+            onClick={logout}
+            style={{
+              marginTop: 10,
+              width: '100%',
+              padding: '7px 10px',
+              background: 'transparent',
+              border: '1px solid var(--border)',
+              borderRadius: 'calc(var(--radius) * 0.5)',
+              fontSize: 12,
+              color: 'var(--faint)',
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+              textAlign: 'left',
+              transition: 'border-color .12s, color .12s',
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--border-strong)'; e.currentTarget.style.color = 'var(--sub)' }}
+            onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--faint)' }}
+          >
+            Sign out
+          </button>
         </div>
       </div>
 

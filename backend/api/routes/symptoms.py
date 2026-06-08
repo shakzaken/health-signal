@@ -4,7 +4,9 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from api.deps import get_current_user
 from db.session import get_session
+from models.user import User
 from repositories.symptom_repository import SymptomRepository
 from schemas.symptom import SymptomEntryResponse
 
@@ -16,12 +18,14 @@ async def list_symptoms(
     from_date: Optional[date] = Query(None, alias="from"),
     to_date: Optional[date] = Query(None, alias="to"),
     session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
 ):
     repo = SymptomRepository(session)
+    user_id = str(current_user.id)
     if from_date or to_date:
-        entries = await repo.list_by_date_range(from_date=from_date, to_date=to_date)
+        entries = await repo.list_by_date_range(from_date=from_date, to_date=to_date, user_id=user_id)
     else:
-        entries = await repo.list_all()
+        entries = await repo.list_all(user_id=user_id)
     return [
         SymptomEntryResponse(
             id=e.id,

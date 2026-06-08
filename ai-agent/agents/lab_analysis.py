@@ -31,10 +31,10 @@ class LabAnalysisAgent:
     Exposes a compiled subgraph that the supervisor invokes directly.
     """
 
-    def __init__(self, llm: BaseChatModel, backend_url: str) -> None:
+    def __init__(self, llm: BaseChatModel, backend_url: str, token: str = "") -> None:
         tools = [
-            make_fetch_lab_results(backend_url),
-            make_get_marker_history(backend_url),
+            make_fetch_lab_results(backend_url, token),
+            make_get_marker_history(backend_url, token),
         ]
         self.graph: CompiledStateGraph = create_tool_calling_graph(llm, tools)
 

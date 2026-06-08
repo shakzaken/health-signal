@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react'
 import type { Message, SourceChunk, Session } from '../types'
-import { sendQuery } from '../api/aiAgent'
+import { sendQueryStream } from '../api/aiAgent'
 
 const SESSIONS_KEY = 'hs_sessions'
 
@@ -42,14 +42,30 @@ export function useChat() {
     setError(null)
     setSources([])
 
+    let streamedContent = ''
+    let finalSources: SourceChunk[] = []
+
     try {
-      const result = await sendQuery(text, sessionId, documentType)
-      const assistantMessage: Message = { role: 'assistant', content: result.answer }
+      for await (const event of sendQueryStream(text, sessionId, documentType)) {
+        if (event.token !== undefined) {
+          streamedContent += event.token
+          // Show partial message with streaming cursor in real-time
+          setMessages([
+            ...messagesWithUser,
+            { role: 'assistant', content: streamedContent, streaming: true },
+          ])
+        } else if (event.sources !== undefined) {
+          finalSources = event.sources
+        }
+      }
+
+      // Stream complete — finalize (remove streaming flag)
+      const assistantMessage: Message = { role: 'assistant', content: streamedContent }
       const finalMessages = [...messagesWithUser, assistantMessage]
       setMessages(finalMessages)
-      setSources(result.sources)
+      setSources(finalSources)
 
-      // Upsert this session in the sidebar immediately after first response
+      // Upsert this session in the sidebar
       const firstUserMsg = finalMessages.find((m) => m.role === 'user')
       const title = firstUserMsg
         ? firstUserMsg.content.slice(0, 60) + (firstUserMsg.content.length > 60 ? '…' : '')
@@ -58,7 +74,7 @@ export function useChat() {
         id: sessionId,
         title,
         messages: finalMessages,
-        sources: result.sources,
+        sources: finalSources,
         createdAt: new Date(),
       }
       setSessions((prev) => {
@@ -72,7 +88,16 @@ export function useChat() {
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Something went wrong'
       setError(message)
-      setMessages((prev) => prev.slice(0, -1))
+      // Remove user message if we got nothing back
+      if (!streamedContent) {
+        setMessages((prev) => prev.slice(0, -1))
+      } else {
+        // Keep partial content without streaming flag
+        setMessages([
+          ...messagesWithUser,
+          { role: 'assistant', content: streamedContent },
+        ])
+      }
     } finally {
       setIsLoading(false)
     }

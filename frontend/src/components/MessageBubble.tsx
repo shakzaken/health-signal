@@ -74,6 +74,19 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
           }}
         >
           {message.content}
+          {message.streaming && (
+            <span
+              style={{
+                display: 'inline-block',
+                width: 2,
+                height: '1em',
+                background: 'var(--accent)',
+                marginLeft: 2,
+                verticalAlign: 'text-bottom',
+                animation: 'hsblink 0.8s step-end infinite',
+              }}
+            />
+          )}
         </div>
       </div>
     </div>

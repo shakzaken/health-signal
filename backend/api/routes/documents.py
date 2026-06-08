@@ -5,9 +5,11 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from api.deps import get_current_user
 from core.logger import get_logger
 from db.session import get_session
 from models.document import DocumentType
+from models.user import User
 from repositories.document_repository import DocumentRepository
 from schemas.document import DocumentResponse, DocumentUploadResponse
 from services.document_service import DocumentService
@@ -22,11 +24,14 @@ async def upload_document(
     document_type: Optional[DocumentType] = Form(None),
     source_date: Optional[date] = Form(None),
     session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
 ):
-    logger.info(f"Upload request — filename={file.filename} type={document_type} date={source_date}")
+    logger.info(f"Upload request — user_id={current_user.id} filename={file.filename} type={document_type}")
     try:
         service = DocumentService(session)
-        document = await service.upload(file, document_type, source_date)
+        document = await service.upload(
+            file, document_type, source_date, user_id=str(current_user.id)
+        )
         logger.info(f"Upload success — document_id={document.id} status={document.processing_status}")
         return DocumentUploadResponse(
             id=document.id,
@@ -42,11 +47,13 @@ async def upload_document(
 
 
 @router.get("", response_model=list[DocumentResponse])
-async def list_documents(session: AsyncSession = Depends(get_session)):
-    logger.debug("List documents request")
+async def list_documents(
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    logger.debug(f"List documents request — user_id={current_user.id}")
     repo = DocumentRepository(session)
-    documents = await repo.list_all()
-    logger.debug(f"Found {len(documents)} documents")
+    documents = await repo.list_all(user_id=str(current_user.id))
     return [
         DocumentResponse(
             id=d.id,
@@ -65,12 +72,11 @@ async def list_documents(session: AsyncSession = Depends(get_session)):
 async def get_document(
     document_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
 ):
-    logger.debug(f"Get document request — document_id={document_id}")
     repo = DocumentRepository(session)
     document = await repo.get_by_id(document_id)
-    if not document:
-        logger.warning(f"Document not found — document_id={document_id}")
+    if not document or document.user_id != str(current_user.id):
         raise HTTPException(status_code=404, detail="Document not found")
     return DocumentResponse(
         id=document.id,

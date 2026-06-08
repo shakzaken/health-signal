@@ -40,11 +40,11 @@ class TimelineAgent:
     Exposes a compiled subgraph the supervisor invokes directly.
     """
 
-    def __init__(self, llm: BaseChatModel, backend_url: str) -> None:
+    def __init__(self, llm: BaseChatModel, backend_url: str, token: str = "") -> None:
         tools = [
-            make_fetch_timeline(backend_url),
-            make_fetch_lab_results(backend_url),
-            make_fetch_all_supplements(backend_url),
+            make_fetch_timeline(backend_url, token),
+            make_fetch_lab_results(backend_url, token),
+            make_fetch_all_supplements(backend_url, token),
         ]
         self.graph: CompiledStateGraph = create_tool_calling_graph(llm, tools)
 
