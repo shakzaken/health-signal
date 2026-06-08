@@ -2,17 +2,37 @@ interface StatusBadgeProps {
   status: string
 }
 
-const STATUS_STYLES: Record<string, string> = {
-  completed: 'bg-green-100 text-green-800',
-  processing: 'bg-yellow-100 text-yellow-800',
-  pending: 'bg-gray-100 text-gray-700',
-  failed: 'bg-red-100 text-red-800',
-}
-
 export default function StatusBadge({ status }: StatusBadgeProps) {
-  const style = STATUS_STYLES[status] ?? 'bg-gray-100 text-gray-700'
+  let color = 'var(--sub)'
+  let bg = 'var(--surface-2)'
+
+  if (status === 'completed') {
+    color = 'var(--good)'
+    bg = '#EAF6F0'
+  } else if (status === 'failed') {
+    color = '#A23E3E'
+    bg = '#FBEAEA'
+  } else if (status === 'processing' || status === 'pending') {
+    color = 'var(--warn)'
+    bg = '#FBF1E3'
+  }
+
   return (
-    <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium capitalize ${style}`}>
+    <span
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 5,
+        fontSize: 11.5,
+        fontWeight: 600,
+        color,
+        background: bg,
+        padding: '3px 9px',
+        borderRadius: 20,
+        textTransform: 'capitalize',
+      }}
+    >
+      <span style={{ width: 6, height: 6, borderRadius: '50%', background: color }} />
       {status}
     </span>
   )

@@ -26,6 +26,9 @@ env/
 # Uploads / user data
 uploads/
 
+# Design docs
+design/
+
 # Local test data (not for version control)
 test-data/
 

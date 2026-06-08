@@ -27,3 +27,11 @@ export interface Message {
   role: 'user' | 'assistant'
   content: string
 }
+
+export interface Session {
+  id: string
+  title: string       // first user message (truncated)
+  messages: Message[]
+  sources: SourceChunk[]
+  createdAt: Date
+}
