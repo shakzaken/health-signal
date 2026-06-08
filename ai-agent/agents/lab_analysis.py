@@ -6,6 +6,7 @@ from langgraph.graph.state import CompiledStateGraph
 from agents.agent_state import SubAgentState, language_enforcement_message
 from agents.graph_factory import create_tool_calling_graph
 from agents.tools.lab_tools import make_fetch_lab_results, make_get_marker_history
+from core.guardrails import SAFETY_INSTRUCTION
 
 SYSTEM_PROMPT = """You are a personal health assistant specializing in lab result analysis.
 
@@ -22,7 +23,7 @@ Guidelines:
 - Suggest questions to ask a doctor when a value looks concerning
 - Be calm and factual — avoid alarmist language
 - Answer in the same language the user asked the question in
-"""
+""" + SAFETY_INSTRUCTION
 
 
 class LabAnalysisAgent:

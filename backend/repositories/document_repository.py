@@ -30,10 +30,11 @@ class DocumentRepository:
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
-    async def find_by_hash(self, content_hash: str) -> Optional[Document]:
-        result = await self.session.execute(
-            select(Document).where(Document.content_hash == content_hash)
-        )
+    async def find_by_hash(self, content_hash: str, user_id: str | None = None) -> Optional[Document]:
+        stmt = select(Document).where(Document.content_hash == content_hash)
+        if user_id is not None:
+            stmt = stmt.where(Document.user_id == user_id)
+        result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
     async def update_status(

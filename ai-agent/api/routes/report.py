@@ -24,7 +24,9 @@ async def generate_report(
 ):
     config = {
         "callbacks": [LangChainTracer()],
-        "run_name": "doctor_report",
+        "run_name": "doctor_report_agent",
+        "metadata": {"user_id": user_id, "period_days": request.period_days},
+        "tags": ["doctor_report_agent"],
     }
     result = await agent.generate(
         user_id=user_id,

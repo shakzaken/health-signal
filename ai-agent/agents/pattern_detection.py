@@ -9,6 +9,7 @@ from agents.tools.lab_tools import make_fetch_lab_results
 from agents.tools.rag_tools import make_search_documents
 from agents.tools.supplement_tools import make_fetch_supplements_in_range
 from agents.tools.symptom_tools import make_fetch_symptoms_in_range
+from core.guardrails import SAFETY_INSTRUCTION
 
 SYSTEM_PROMPT = """You are a personal health pattern analyst.
 
@@ -33,7 +34,7 @@ Additional guidelines:
 - Be explicit about what is correlation vs. what is speculation
 - If the data is insufficient to detect a pattern, say so clearly
 - Answer in the same language the user asked in
-"""
+""" + SAFETY_INSTRUCTION
 
 
 class PatternDetectionAgent:

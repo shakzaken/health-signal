@@ -9,6 +9,7 @@ from langchain_core.runnables.config import RunnableConfig
 from langgraph.graph import END, StateGraph
 from typing_extensions import TypedDict
 
+from core.guardrails import SAFETY_INSTRUCTION
 from core.logger import get_logger
 
 logger = get_logger(__name__)
@@ -34,7 +35,7 @@ Guidelines:
 - Make the questions specific to the user's actual data (e.g. name the marker, name the symptom)
 - Write in plain language — the report is for the user, not for a clinician
 - If there is no data in a section, say "No data available for this period"
-"""
+""" + SAFETY_INSTRUCTION
 
 SUMMARIZE_PROMPT = """Summarize the following conversation history into a short paragraph (3–5 sentences).
 Focus on what health topics were discussed, what data was looked at, and what conclusions were reached.

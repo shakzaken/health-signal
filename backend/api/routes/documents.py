@@ -18,7 +18,7 @@ logger = get_logger(__name__)
 router = APIRouter(prefix="/documents", tags=["documents"])
 
 
-@router.post("/upload", response_model=DocumentUploadResponse)
+@router.post("/upload", response_model=DocumentUploadResponse, status_code=202)
 async def upload_document(
     file: UploadFile = File(...),
     document_type: Optional[DocumentType] = Form(None),

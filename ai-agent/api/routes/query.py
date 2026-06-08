@@ -2,7 +2,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from agents.supervisor import Supervisor
 from api.deps import get_current_user_id, get_supervisor
@@ -11,7 +11,7 @@ router = APIRouter(prefix="/query", tags=["query"])
 
 
 class QueryRequest(BaseModel):
-    question: str
+    question: str = Field(..., min_length=1)
     session_id: Optional[str] = None
     document_type: Optional[str] = None
 
