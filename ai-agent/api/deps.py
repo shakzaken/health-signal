@@ -8,6 +8,44 @@ re-created per request — the construction cost is negligible.
 """
 
 from functools import lru_cache
+from typing import Annotated
+
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from jose import JWTError
+
+from core.security import decode_access_token
+
+bearer_scheme = HTTPBearer()
+
+
+def get_token(
+    credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
+) -> str:
+    """Return the raw JWT string after validating it. Raises 401 on failure."""
+    try:
+        decode_access_token(credentials.credentials)  # validate
+        return credentials.credentials
+    except (JWTError, ValueError):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+
+def get_current_user_id(
+    credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
+) -> str:
+    """Validate JWT and return user_id string. Raises 401 on failure."""
+    try:
+        return decode_access_token(credentials.credentials)
+    except (JWTError, ValueError):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
 from langchain_openai import ChatOpenAI
 
@@ -61,15 +99,15 @@ def get_ingestion_pipeline() -> IngestionPipeline:
     )
 
 
-def get_supervisor() -> Supervisor:
+def get_supervisor(token: str = Depends(get_token)) -> Supervisor:
     llm = get_llm()
     client = get_qdrant_client()
     rag_chain = QueryChain(
         retriever=Retriever(client=client, embedder=get_embedder()),
         llm=llm,
     )
-    return Supervisor(llm=llm, rag_chain=rag_chain, backend_url=settings.backend_url)
+    return Supervisor(llm=llm, rag_chain=rag_chain, backend_url=settings.backend_url, token=token)
 
 
-def get_doctor_report_agent() -> DoctorReportAgent:
-    return DoctorReportAgent(llm=get_llm(), backend_url=settings.backend_url)
+def get_doctor_report_agent(token: str = Depends(get_token)) -> DoctorReportAgent:
+    return DoctorReportAgent(llm=get_llm(), backend_url=settings.backend_url, token=token)

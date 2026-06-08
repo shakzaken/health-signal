@@ -36,6 +36,7 @@ class DocumentService:
         file: UploadFile,
         document_type: DocumentType,
         source_date: date | None = None,
+        user_id: str | None = None,
     ) -> Document:
         content = await file.read()
         content_hash = hashlib.sha256(content).hexdigest()
@@ -65,6 +66,7 @@ class DocumentService:
 
         # Create DB record
         document = Document(
+            user_id=user_id,
             filename=file.filename,
             file_path=str(file_path),
             document_type=document_type,

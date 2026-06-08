@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     )
 
     database_url: str
+    secret_key: str
     ai_agent_url: str = "http://localhost:8001"
     file_storage_path: str = "./uploads"
 

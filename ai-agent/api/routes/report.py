@@ -1,17 +1,14 @@
-from typing import Optional
-
 from fastapi import APIRouter, Depends
 from langchain_core.tracers.langchain import LangChainTracer
 from pydantic import BaseModel
 
 from agents.doctor_report import DoctorReportAgent
-from api.deps import get_doctor_report_agent
+from api.deps import get_current_user_id, get_doctor_report_agent
 
 router = APIRouter(prefix="/report", tags=["report"])
 
 
 class ReportRequest(BaseModel):
-    user_id: str = "default"
     period_days: int = 90
 
 
@@ -22,6 +19,7 @@ class ReportResponse(BaseModel):
 @router.post("/generate", response_model=ReportResponse)
 async def generate_report(
     request: ReportRequest,
+    user_id: str = Depends(get_current_user_id),
     agent: DoctorReportAgent = Depends(get_doctor_report_agent),
 ):
     config = {
@@ -29,7 +27,7 @@ async def generate_report(
         "run_name": "doctor_report",
     }
     result = await agent.generate(
-        user_id=request.user_id,
+        user_id=user_id,
         period_days=request.period_days,
         config=config,
     )

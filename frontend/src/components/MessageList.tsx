@@ -73,7 +73,10 @@ export default function MessageList({ messages, isLoading, sources, onSelectProm
 
   const hasMessages = messages.length > 0
   const lastMessage = messages[messages.length - 1]
+  const isStreaming = lastMessage?.streaming === true
   const showSources = sources.length > 0 && !isLoading && lastMessage?.role === 'assistant'
+  // Show typing dots only while waiting for the first token — once streaming starts, hide them
+  const showTypingDots = isLoading && !isStreaming
 
   return (
     <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
@@ -110,8 +113,8 @@ export default function MessageList({ messages, isLoading, sources, onSelectProm
         {/* Sources (inline after last assistant message) */}
         {showSources && <SourcePanel sources={sources} />}
 
-        {/* Loading indicator */}
-        {isLoading && <TypingDots />}
+        {/* Loading indicator — only while waiting for first token */}
+        {showTypingDots && <TypingDots />}
 
         {/* Starter prompts — shown when no messages yet */}
         {!hasMessages && !isLoading && (

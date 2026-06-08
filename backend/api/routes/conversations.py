@@ -1,11 +1,12 @@
 import uuid
-from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from api.deps import get_current_user
 from db.session import get_session
+from models.user import User
 from repositories.conversation_repository import ConversationRepository
 from schemas.conversation import ConversationMessageResponse, ConversationSessionResponse
 
@@ -13,7 +14,6 @@ router = APIRouter(prefix="/conversations", tags=["conversations"])
 
 
 class AppendMessageRequest(BaseModel):
-    user_id: str = "default"
     role: str  # "user" | "assistant"
     content: str
 
@@ -29,11 +29,12 @@ class CompressMessagesResponse(BaseModel):
 @router.get("/{session_id}", response_model=ConversationSessionResponse)
 async def get_conversation_session(
     session_id: uuid.UUID,
-    user_id: str = Query("default"),
     recent: int = Query(6, description="Number of recent messages to return verbatim"),
     session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
 ):
     """Load a conversation session — summary + recent N messages + total message count."""
+    user_id = str(current_user.id)
     repo = ConversationRepository(session)
     conv_session = await repo.get_or_create_session(session_id, user_id)
     recent_messages = await repo.get_recent_messages(session_id, limit=recent)
@@ -62,13 +63,15 @@ async def append_message(
     session_id: uuid.UUID,
     request: AppendMessageRequest,
     session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
 ):
     """Append one message to a session. Creates the session if it does not exist."""
+    user_id = str(current_user.id)
     repo = ConversationRepository(session)
-    await repo.get_or_create_session(session_id, request.user_id)
+    await repo.get_or_create_session(session_id, user_id)
     msg = await repo.append_message(
         session_id=session_id,
-        user_id=request.user_id,
+        user_id=user_id,
         role=request.role,
         content=request.content,
     )
@@ -86,6 +89,7 @@ async def update_summary(
     session_id: uuid.UUID,
     request: UpdateSummaryRequest,
     session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
 ):
     """Replace the rolling summary for a session."""
     repo = ConversationRepository(session)
@@ -98,6 +102,7 @@ async def get_messages_to_compress(
     session_id: uuid.UUID,
     keep_last: int = Query(6, description="How many recent messages to keep verbatim"),
     session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
 ):
     """Return messages older than the most recent `keep_last` — for LLM summarization."""
     repo = ConversationRepository(session)

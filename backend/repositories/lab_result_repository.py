@@ -5,6 +5,7 @@ from datetime import date
 from sqlalchemy import select, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from models.document import Document
 from models.lab_result import LabMarker, LabResult
 
 
@@ -36,23 +37,32 @@ class LabResultRepository:
         )
         return list(result.scalars().all())
 
-    async def list_all(self) -> list[LabResult]:
-        result = await self.session.execute(
-            select(LabResult).order_by(LabResult.test_date.desc())
+    async def list_all(self, user_id: str | None = None) -> list[LabResult]:
+        stmt = (
+            select(LabResult)
+            .join(Document, LabResult.document_id == Document.id)
+            .order_by(LabResult.test_date.desc())
         )
+        if user_id is not None:
+            stmt = stmt.where(Document.user_id == user_id)
+        result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
-    async def get_marker_history(self, marker_name: str) -> list[tuple[LabMarker, date]]:
+    async def get_marker_history(self, marker_name: str, user_id: str | None = None) -> list[tuple[LabMarker, date]]:
         """Return all historical values for a specific marker with the test date.
 
         Uses case-insensitive LIKE search so 'Vitamin D' matches 'Vitamin D (25-OH)'.
         Returns list of (LabMarker, test_date) tuples ordered by test date.
         """
         pattern = f"%{marker_name}%"
-        result = await self.session.execute(
+        stmt = (
             select(LabMarker, LabResult.test_date)
             .join(LabResult, LabMarker.lab_result_id == LabResult.id)
+            .join(Document, LabResult.document_id == Document.id)
             .where(LabMarker.name.ilike(pattern))
             .order_by(LabResult.test_date.asc())
         )
+        if user_id is not None:
+            stmt = stmt.where(Document.user_id == user_id)
+        result = await self.session.execute(stmt)
         return list(result.all())

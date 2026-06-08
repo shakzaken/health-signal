@@ -4,6 +4,7 @@ from typing import Optional
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from models.document import Document
 from models.symptom import SymptomEntry
 
 
@@ -23,22 +24,33 @@ class SymptomRepository:
         await self.session.commit()
         return entries
 
-    async def list_all(self) -> list[SymptomEntry]:
-        result = await self.session.execute(
-            select(SymptomEntry).order_by(SymptomEntry.occurred_at.desc())
+    async def list_all(self, user_id: str | None = None) -> list[SymptomEntry]:
+        stmt = (
+            select(SymptomEntry)
+            .join(Document, SymptomEntry.document_id == Document.id)
+            .order_by(SymptomEntry.occurred_at.desc())
         )
+        if user_id is not None:
+            stmt = stmt.where(Document.user_id == user_id)
+        result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
     async def list_by_date_range(
         self,
         from_date: Optional[date] = None,
         to_date: Optional[date] = None,
+        user_id: str | None = None,
     ) -> list[SymptomEntry]:
-        query = select(SymptomEntry)
+        stmt = (
+            select(SymptomEntry)
+            .join(Document, SymptomEntry.document_id == Document.id)
+        )
+        if user_id is not None:
+            stmt = stmt.where(Document.user_id == user_id)
         if from_date:
-            query = query.where(SymptomEntry.occurred_at >= from_date)
+            stmt = stmt.where(SymptomEntry.occurred_at >= from_date)
         if to_date:
-            query = query.where(SymptomEntry.occurred_at <= to_date)
-        query = query.order_by(SymptomEntry.occurred_at.desc())
-        result = await self.session.execute(query)
+            stmt = stmt.where(SymptomEntry.occurred_at <= to_date)
+        stmt = stmt.order_by(SymptomEntry.occurred_at.desc())
+        result = await self.session.execute(stmt)
         return list(result.scalars().all())

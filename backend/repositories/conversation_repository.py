@@ -19,7 +19,8 @@ class ConversationRepository:
     ) -> ConversationSession:
         result = await self.session.execute(
             select(ConversationSession).where(
-                ConversationSession.session_id == session_id
+                ConversationSession.session_id == session_id,
+                ConversationSession.user_id == user_id,
             )
         )
         existing = result.scalar_one_or_none()

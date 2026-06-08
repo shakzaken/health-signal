@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     )
 
     database_url: str
+    secret_key: str
     qdrant_host: str = "localhost"
     qdrant_port: int = 6333
     anthropic_api_key: str

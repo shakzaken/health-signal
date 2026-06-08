@@ -67,10 +67,15 @@ class DoctorReportAgent:
     for a tool-calling loop.
     """
 
-    def __init__(self, llm: BaseChatModel, backend_url: str) -> None:
+    def __init__(self, llm: BaseChatModel, backend_url: str, token: str = "") -> None:
         self._llm = llm
         self._backend_url = backend_url
+        self._token = token
         self._graph = self._build_graph()
+
+    @property
+    def _auth_headers(self) -> dict:
+        return {"Authorization": f"Bearer {self._token}"} if self._token else {}
 
     # ── Data fetching helpers ─────────────────────────────────────────────────
 
@@ -79,7 +84,9 @@ class DoctorReportAgent:
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.get(
-                    f"{self._backend_url}/lab-results", timeout=15.0
+                    f"{self._backend_url}/lab-results",
+                    headers=self._auth_headers,
+                    timeout=15.0,
                 )
                 response.raise_for_status()
                 results = response.json()
@@ -126,6 +133,7 @@ class DoctorReportAgent:
             async with httpx.AsyncClient() as client:
                 response = await client.get(
                     f"{self._backend_url}/symptom-entries",
+                    headers=self._auth_headers,
                     params={"from": from_date},
                     timeout=15.0,
                 )
@@ -153,6 +161,7 @@ class DoctorReportAgent:
             async with httpx.AsyncClient() as client:
                 response = await client.get(
                     f"{self._backend_url}/supplement-entries",
+                    headers=self._auth_headers,
                     params={"from": from_date},
                     timeout=15.0,
                 )
@@ -228,7 +237,7 @@ class DoctorReportAgent:
 
     async def generate(
         self,
-        user_id: str = "default",
+        user_id: str = "",
         period_days: int = 90,
         conversation_context: str = "",
         config: Optional[RunnableConfig] = None,

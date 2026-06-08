@@ -3,7 +3,9 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from api.deps import get_current_user
 from db.session import get_session
+from models.user import User
 from repositories.lab_result_repository import LabResultRepository
 from schemas.lab_result import LabMarkerResponse, LabResultResponse, MarkerHistoryResponse
 
@@ -11,9 +13,12 @@ router = APIRouter(prefix="/lab-results", tags=["lab-results"])
 
 
 @router.get("", response_model=list[LabResultResponse])
-async def list_lab_results(session: AsyncSession = Depends(get_session)):
+async def list_lab_results(
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
     repo = LabResultRepository(session)
-    results = await repo.list_all()
+    results = await repo.list_all(user_id=str(current_user.id))
     output = []
     for r in results:
         markers = await repo.get_markers_for_result(r.id)
@@ -43,14 +48,14 @@ async def list_lab_results(session: AsyncSession = Depends(get_session)):
     return output
 
 
-# NOTE: specific routes must come before parameterised routes
 @router.get("/markers/{marker_name}/history", response_model=MarkerHistoryResponse)
 async def get_marker_history(
     marker_name: str,
     session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
 ):
     repo = LabResultRepository(session)
-    rows = await repo.get_marker_history(marker_name)
+    rows = await repo.get_marker_history(marker_name, user_id=str(current_user.id))
     return MarkerHistoryResponse(
         name=marker_name,
         history=[
@@ -75,6 +80,7 @@ async def get_marker_history(
 async def get_lab_result(
     result_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
 ):
     repo = LabResultRepository(session)
     result = await repo.get_by_id(result_id)
@@ -102,4 +108,3 @@ async def get_lab_result(
             for m in markers
         ],
     )
-

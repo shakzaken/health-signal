@@ -2,7 +2,7 @@ import httpx
 from langchain_core.tools import tool
 
 
-def make_fetch_symptoms_in_range(backend_url: str):
+def make_fetch_symptoms_in_range(backend_url: str, token: str):
     """Return a tool that fetches symptom entries within a date range."""
 
     @tool
@@ -11,9 +11,11 @@ def make_fetch_symptoms_in_range(backend_url: str):
         Fetch symptom entries within a date range.
         from_date and to_date must be ISO date strings (YYYY-MM-DD).
         """
+        headers = {"Authorization": f"Bearer {token}"}
         async with httpx.AsyncClient() as client:
             response = await client.get(
                 f"{backend_url}/symptom-entries",
+                headers=headers,
                 params={"from": from_date, "to": to_date},
                 timeout=10.0,
             )

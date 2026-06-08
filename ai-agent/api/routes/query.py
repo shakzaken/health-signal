@@ -1,10 +1,11 @@
 from typing import Optional
 
 from fastapi import APIRouter, Depends
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from agents.supervisor import Supervisor
-from api.deps import get_supervisor
+from api.deps import get_current_user_id, get_supervisor
 
 router = APIRouter(prefix="/query", tags=["query"])
 
@@ -29,15 +30,44 @@ class QueryResponse(BaseModel):
     sources: list[SourceChunk]
 
 
+@router.post("/stream")
+async def query_documents_stream(
+    request: QueryRequest,
+    user_id: str = Depends(get_current_user_id),
+    supervisor: Supervisor = Depends(get_supervisor),
+):
+    """Stream the answer as Server-Sent Events (text/event-stream).
+
+    Each event is a JSON object:
+    - {"token": "..."} for each chunk of the answer
+    - {"sources": [...]} as the final event
+    """
+    return StreamingResponse(
+        supervisor.run_stream(
+            question=request.question,
+            session_id=request.session_id,
+            document_type=request.document_type,
+            user_id=user_id,
+        ),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
 @router.post("", response_model=QueryResponse)
 async def query_documents(
     request: QueryRequest,
+    user_id: str = Depends(get_current_user_id),
     supervisor: Supervisor = Depends(get_supervisor),
 ):
     result = await supervisor.run(
         question=request.question,
         session_id=request.session_id,
         document_type=request.document_type,
+        user_id=user_id,
     )
     return QueryResponse(
         answer=result["answer"],

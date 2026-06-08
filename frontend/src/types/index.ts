@@ -26,6 +26,7 @@ export interface ReportResponse {
 export interface Message {
   role: 'user' | 'assistant'
   content: string
+  streaming?: boolean
 }
 
 export interface Session {

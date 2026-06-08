@@ -4,7 +4,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from api.routes import conversations, documents, health, lab_results, supplements, symptoms, timeline
+from api.routes import auth, conversations, documents, health, lab_results, supplements, symptoms, timeline
 from core.config import settings
 from core.logger import get_logger
 
@@ -35,6 +35,7 @@ app.add_middleware(
 )
 
 app.include_router(health.router)
+app.include_router(auth.router)
 app.include_router(documents.router)
 app.include_router(lab_results.router)
 app.include_router(symptoms.router)

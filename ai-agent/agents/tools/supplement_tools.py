@@ -2,7 +2,7 @@ import httpx
 from langchain_core.tools import tool
 
 
-def make_fetch_supplements_in_range(backend_url: str):
+def make_fetch_supplements_in_range(backend_url: str, token: str):
     """Return a tool that fetches supplement entries active within a date range."""
 
     @tool
@@ -11,9 +11,11 @@ def make_fetch_supplements_in_range(backend_url: str):
         Fetch supplement entries active within a date range.
         from_date and to_date must be ISO date strings (YYYY-MM-DD).
         """
+        headers = {"Authorization": f"Bearer {token}"}
         async with httpx.AsyncClient() as client:
             response = await client.get(
                 f"{backend_url}/supplement-entries",
+                headers=headers,
                 params={"from": from_date, "to": to_date},
                 timeout=10.0,
             )
@@ -33,14 +35,17 @@ def make_fetch_supplements_in_range(backend_url: str):
     return fetch_supplements_in_range
 
 
-def make_fetch_all_supplements(backend_url: str):
+def make_fetch_all_supplements(backend_url: str, token: str):
     """Return a tool that fetches every supplement entry with full detail."""
 
     @tool
     async def fetch_all_supplements() -> str:
         """Fetch all supplement entries with their start dates, stop dates, and reasons."""
+        headers = {"Authorization": f"Bearer {token}"}
         async with httpx.AsyncClient() as client:
-            response = await client.get(f"{backend_url}/supplement-entries", timeout=10.0)
+            response = await client.get(
+                f"{backend_url}/supplement-entries", headers=headers, timeout=10.0
+            )
             response.raise_for_status()
             entries = response.json()
 

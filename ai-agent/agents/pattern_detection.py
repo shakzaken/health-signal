@@ -42,14 +42,14 @@ class PatternDetectionAgent:
     symptoms, and supplements. Exposes a compiled subgraph the supervisor invokes directly.
     """
 
-    def __init__(self, llm: BaseChatModel, backend_url: str) -> None:
+    def __init__(self, llm: BaseChatModel, backend_url: str, token: str = "") -> None:
         # search_documents calls the ai-agent query endpoint, not the backend
         ai_agent_url = backend_url.replace(":8000", ":8001")
         tools = [
-            make_fetch_lab_results(backend_url),
-            make_fetch_symptoms_in_range(backend_url),
-            make_fetch_supplements_in_range(backend_url),
-            make_search_documents(ai_agent_url),
+            make_fetch_lab_results(backend_url, token),
+            make_fetch_symptoms_in_range(backend_url, token),
+            make_fetch_supplements_in_range(backend_url, token),
+            make_search_documents(ai_agent_url, token),
         ]
         self.graph: CompiledStateGraph = create_tool_calling_graph(llm, tools)
 

@@ -4,11 +4,18 @@ import { type Tab } from './components/TabNav'
 import UploadPage from './pages/UploadPage'
 import ChatPage from './pages/ChatPage'
 import ReportPage from './pages/ReportPage'
+import LoginPage from './pages/LoginPage'
 import { useChat } from './hooks/useChat'
+import { useAuth } from './context/AuthContext'
 
-export default function App() {
+function AppShell() {
+  const { isAuthenticated } = useAuth()
   const [tab, setTab] = useState<Tab>('chat')
   const chatState = useChat()
+
+  if (!isAuthenticated) {
+    return <LoginPage />
+  }
 
   return (
     <Layout
@@ -25,4 +32,8 @@ export default function App() {
       {tab === 'report' && <ReportPage />}
     </Layout>
   )
+}
+
+export default function App() {
+  return <AppShell />
 }
