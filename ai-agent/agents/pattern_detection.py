@@ -3,7 +3,7 @@ from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_core.runnables.config import RunnableConfig
 from langgraph.graph.state import CompiledStateGraph
 
-from agents.agent_state import SubAgentState
+from agents.agent_state import SubAgentState, language_enforcement_message
 from agents.graph_factory import create_tool_calling_graph
 from agents.tools.lab_tools import make_fetch_lab_results
 from agents.tools.rag_tools import make_search_documents
@@ -67,6 +67,7 @@ class PatternDetectionAgent:
                 messages.append(HumanMessage(content=msg["content"]))
             else:
                 messages.append(AIMessage(content=msg["content"]))
+        messages.append(language_enforcement_message(question))
         messages.append(HumanMessage(content=question))
         return {"messages": messages, "sources": []}
 

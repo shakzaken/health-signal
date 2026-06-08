@@ -118,6 +118,8 @@ class QueryChain:
         # Build the message list — inject conversation history before the question
         messages: list = [SystemMessage(content=SYSTEM_PROMPT)]
 
+        has_history = bool(recent_history or summary)
+
         if summary:
             messages.append(SystemMessage(content=f"Summary of earlier conversation:\n{summary}"))
 
@@ -128,11 +130,24 @@ class QueryChain:
                 messages.append(AIMessage(content=msg["content"]))
 
         # No document chunks and no conversation history → nothing to answer from
-        if not chunks and not (recent_history or summary):
+        if not chunks and not has_history:
             return {
                 "answer": "I couldn't find relevant information in your uploaded documents to answer that question.",
                 "sources": [],
             }
+
+        # Explicitly tell the LLM when there is NO prior conversation history.
+        # Without this, it may hallucinate a conversation from document content.
+        if not has_history:
+            messages.append(SystemMessage(
+                content=(
+                    "IMPORTANT: This is the very start of a new conversation. "
+                    "There is NO prior conversation history between you and the user. "
+                    "If the user asks what you were previously discussing, or refers to any "
+                    "earlier exchange, tell them clearly that this is a brand-new session "
+                    "with no previous context."
+                )
+            ))
 
         # Add document context as a system message (if any) so the LLM can use
         # BOTH the conversation history AND the retrieved chunks independently.
@@ -144,6 +159,28 @@ class QueryChain:
             messages.append(
                 SystemMessage(content=f"Relevant context from the user's health documents:\n\n{context}")
             )
+
+        # Language enforcement: detect the question language and require the reply
+        # to match.  This must be placed immediately before the question so the
+        # instruction is as prominent as possible, overriding any language influence
+        # from Hebrew document chunks.
+        if self._is_english(question):
+            messages.append(SystemMessage(
+                content=(
+                    "CRITICAL: The user's question is in English. "
+                    "You MUST reply in English only. "
+                    "Do NOT switch to Hebrew or any other language, "
+                    "even if the retrieved document excerpts are written in Hebrew."
+                )
+            ))
+        else:
+            messages.append(SystemMessage(
+                content=(
+                    "CRITICAL: The user's question is NOT in English. "
+                    "You MUST reply in the same language as the user's question. "
+                    "Do NOT switch to English."
+                )
+            ))
 
         # Current question always goes last as a plain HumanMessage
         messages.append(HumanMessage(content=question))
