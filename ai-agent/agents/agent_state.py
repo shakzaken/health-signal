@@ -4,6 +4,8 @@ from langchain_core.messages import BaseMessage, SystemMessage
 from langgraph.graph.message import add_messages
 from typing_extensions import TypedDict
 
+from core.language import is_english
+
 
 class SubAgentState(TypedDict):
     messages: Annotated[list[BaseMessage], add_messages]
@@ -18,12 +20,7 @@ def language_enforcement_message(question: str) -> SystemMessage:
     it overrides any language influence from tool results (e.g. Hebrew document
     chunks retrieved from Qdrant).
     """
-    # Heuristic: if >80% of alphabetic chars are ASCII → English question
-    ascii_alpha = sum(1 for c in question if ord(c) < 128 and c.isalpha())
-    total_alpha = sum(1 for c in question if c.isalpha())
-    is_english = (total_alpha == 0) or (ascii_alpha / total_alpha) > 0.8
-
-    if is_english:
+    if is_english(question):
         return SystemMessage(
             content=(
                 "CRITICAL LANGUAGE RULE: The user's question is in English. "

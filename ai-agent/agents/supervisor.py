@@ -1,9 +1,7 @@
 import asyncio
 import json
-import uuid
 from typing import AsyncGenerator, Literal, Optional
 
-import httpx
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.runnables.config import RunnableConfig
@@ -12,16 +10,20 @@ from langgraph.graph import END, StateGraph
 from pydantic import BaseModel
 from typing_extensions import TypedDict
 
+from agents.conversation_memory import ConversationMemory
 from agents.doctor_report import DoctorReportAgent
 from agents.lab_analysis import LabAnalysisAgent
 from agents.pattern_detection import PatternDetectionAgent
 from agents.timeline import TimelineAgent
 from core.logger import get_logger
-from rag.query_chain import QueryChain
+from rag.query_chain import NO_RELEVANT_DOCUMENTS_MESSAGE, QueryChain
 
 logger = get_logger(__name__)
 
-COMPRESS_THRESHOLD = 14  # trigger summarization once total messages exceed this
+# 14 messages = ~7 back-and-forth turns.
+# At this point the context is long enough that older turns dilute relevance
+# more than they add value.
+COMPRESS_THRESHOLD = 14
 
 CLASSIFY_PROMPT = """You are a routing assistant for a personal health AI.
 
@@ -97,117 +99,28 @@ class Supervisor:
         llm: BaseChatModel,
         rag_chain: QueryChain,
         backend_url: str,
+        ai_agent_url: str = "http://localhost:8001",
         token: str = "",
     ) -> None:
+        if not token:
+            logger.warning(
+                "Supervisor constructed without a token — all backend calls will fail silently."
+            )
         self._llm = llm
         self._rag_chain = rag_chain
         self._backend_url = backend_url
         self._token = token
+        self._memory = ConversationMemory(backend_url=backend_url, token=token)
         self._lab_agent = LabAnalysisAgent(llm=llm, backend_url=backend_url, token=token)
-        self._pattern_agent = PatternDetectionAgent(llm=llm, backend_url=backend_url, token=token)
+        self._pattern_agent = PatternDetectionAgent(
+            llm=llm, backend_url=backend_url, ai_agent_url=ai_agent_url, token=token
+        )
         self._timeline_agent = TimelineAgent(llm=llm, backend_url=backend_url, token=token)
         self._doctor_agent = DoctorReportAgent(llm=llm, backend_url=backend_url, token=token)
         self._graph = self._build_graph()
-
-    # ── Conversation history ──────────────────────────────────────────────────
-
-    async def _load_history(
-        self, session_id: str, user_id: str, token: str
-    ) -> tuple[str, list[dict]]:
-        """Load the rolling summary + recent messages from the backend. Returns (summary, recent_history)."""
-        headers = {"Authorization": f"Bearer {token}"}
-        try:
-            async with httpx.AsyncClient() as client:
-                response = await client.get(
-                    f"{self._backend_url}/conversations/{session_id}",
-                    headers=headers,
-                    params={"recent": 6},
-                    timeout=10.0,
-                )
-                response.raise_for_status()
-                data = response.json()
-            summary = data.get("summary") or ""
-            recent_history = [
-                {"role": m["role"], "content": m["content"]}
-                for m in data.get("messages", [])
-            ]
-            return summary, recent_history
-        except Exception as e:
-            logger.warning(f"Could not load conversation history — session={session_id} error={e}")
-            return "", []
-
-    async def _save_turn(
-        self, session_id: str, user_id: str, question: str, answer: str, token: str
-    ) -> int:
-        """Append the user question and assistant answer to the backend. Returns new total message count."""
-        headers = {"Authorization": f"Bearer {token}"}
-        total = 0
-        try:
-            async with httpx.AsyncClient() as client:
-                for role, content in [("user", question), ("assistant", answer)]:
-                    resp = await client.post(
-                        f"{self._backend_url}/conversations/{session_id}/messages",
-                        json={"role": role, "content": content},
-                        headers=headers,
-                        timeout=10.0,
-                    )
-                    resp.raise_for_status()
-                # get updated count
-                count_resp = await client.get(
-                    f"{self._backend_url}/conversations/{session_id}",
-                    headers=headers,
-                    params={"recent": 0},
-                    timeout=10.0,
-                )
-                count_resp.raise_for_status()
-                total = count_resp.json().get("total_count", 0)
-        except Exception as e:
-            logger.warning(f"Could not save conversation turn — session={session_id} error={e}")
-        return total
-
-    async def _maybe_summarize(
-        self,
-        session_id: str,
-        user_id: str,
-        total_count: int,
-        config: RunnableConfig,
-        token: str,
-        doctor_agent: DoctorReportAgent,
-    ) -> None:
-        """If total_count exceeds the threshold, fetch old messages and compress them into a new summary."""
-        if total_count <= COMPRESS_THRESHOLD:
-            return
-        headers = {"Authorization": f"Bearer {token}"}
-        try:
-            async with httpx.AsyncClient() as client:
-                resp = await client.get(
-                    f"{self._backend_url}/conversations/{session_id}/to-compress",
-                    headers=headers,
-                    params={"keep_last": 6},
-                    timeout=10.0,
-                )
-                resp.raise_for_status()
-                old_messages = resp.json().get("messages", [])
-
-            if not old_messages:
-                return
-
-            transcript = "\n".join(
-                f"{m['role'].upper()}: {m['content']}" for m in old_messages
-            )
-            new_summary = await doctor_agent.summarize_conversation(
-                transcript, config=config
-            )
-            async with httpx.AsyncClient() as client:
-                await client.put(
-                    f"{self._backend_url}/conversations/{session_id}/summary",
-                    json={"summary": new_summary},
-                    headers=headers,
-                    timeout=10.0,
-                )
-            logger.info(f"Conversation summarized — session={session_id}")
-        except Exception as e:
-            logger.warning(f"Could not summarize conversation — session={session_id} error={e}")
+        # Keep strong references to background tasks so CPython doesn't GC them
+        # before they complete (see asyncio docs on create_task).
+        self._background_tasks: set[asyncio.Task] = set()
 
     # ── Graph nodes ───────────────────────────────────────────────────────────
 
@@ -239,41 +152,33 @@ class Supervisor:
         logger.info(f"Supervisor classified question → route={route}")
         return {**state, "route": route}
 
-    async def _run_lab_analysis(self, state: AgentState, config: RunnableConfig) -> AgentState:
-        agent_config: RunnableConfig = {**config, "run_name": "lab_analysis_agent", "tags": config.get("tags", []) + ["lab_analysis_agent"]}
-        final = await self._lab_agent.graph.ainvoke(
-            self._lab_agent.initial_state(
-                state["question"],
-                summary=state["summary"],
-                recent_history=state["recent_history"],
-            ),
+    async def _run_sub_agent(
+        self,
+        state: AgentState,
+        config: RunnableConfig,
+        agent,
+        run_name: str,
+    ) -> AgentState:
+        """Invoke a sub-agent graph and merge its output back into the supervisor state."""
+        agent_config: RunnableConfig = {
+            **config,
+            "run_name": run_name,
+            "tags": config.get("tags", []) + [run_name],
+        }
+        final = await agent.graph.ainvoke(
+            agent.initial_state(state["question"], state["summary"], state["recent_history"]),
             config=agent_config,
         )
         return {**state, "answer": final["messages"][-1].content, "sources": final["sources"]}
+
+    async def _run_lab_analysis(self, state: AgentState, config: RunnableConfig) -> AgentState:
+        return await self._run_sub_agent(state, config, self._lab_agent, "lab_analysis_agent")
 
     async def _run_pattern_detection(self, state: AgentState, config: RunnableConfig) -> AgentState:
-        agent_config: RunnableConfig = {**config, "run_name": "pattern_detection_agent", "tags": config.get("tags", []) + ["pattern_detection_agent"]}
-        final = await self._pattern_agent.graph.ainvoke(
-            self._pattern_agent.initial_state(
-                state["question"],
-                summary=state["summary"],
-                recent_history=state["recent_history"],
-            ),
-            config=agent_config,
-        )
-        return {**state, "answer": final["messages"][-1].content, "sources": final["sources"]}
+        return await self._run_sub_agent(state, config, self._pattern_agent, "pattern_detection_agent")
 
     async def _run_timeline(self, state: AgentState, config: RunnableConfig) -> AgentState:
-        agent_config: RunnableConfig = {**config, "run_name": "timeline_agent", "tags": config.get("tags", []) + ["timeline_agent"]}
-        final = await self._timeline_agent.graph.ainvoke(
-            self._timeline_agent.initial_state(
-                state["question"],
-                summary=state["summary"],
-                recent_history=state["recent_history"],
-            ),
-            config=agent_config,
-        )
-        return {**state, "answer": final["messages"][-1].content, "sources": final["sources"]}
+        return await self._run_sub_agent(state, config, self._timeline_agent, "timeline_agent")
 
     async def _run_doctor_report(self, state: AgentState, config: RunnableConfig) -> AgentState:
         # Build conversation context string from summary + recent history
@@ -348,6 +253,29 @@ class Supervisor:
 
         return graph.compile()
 
+    # ── Background task helper ────────────────────────────────────────────────
+
+    def _schedule_summarize(
+        self,
+        session_id: str,
+        user_id: str,
+        total_count: int,
+        config: RunnableConfig,
+    ) -> None:
+        """Fire-and-forget summarisation task with a tracked reference."""
+        task = asyncio.create_task(
+            self._memory.maybe_summarize(
+                session_id=session_id,
+                user_id=user_id,
+                total_count=total_count,
+                compress_threshold=COMPRESS_THRESHOLD,
+                config=config,
+                summarize_fn=self._doctor_agent.summarize_conversation,
+            )
+        )
+        self._background_tasks.add(task)
+        task.add_done_callback(self._background_tasks.discard)
+
     # ── Public API ────────────────────────────────────────────────────────────
 
     async def run(
@@ -370,7 +298,7 @@ class Supervisor:
         # Load conversation history if session_id provided
         summary, recent_history = "", []
         if session_id:
-            summary, recent_history = await self._load_history(session_id, user_id, self._token)
+            summary, recent_history = await self._memory.load(session_id, user_id)
 
         initial_state: AgentState = {
             "question": question,
@@ -389,14 +317,9 @@ class Supervisor:
 
         # Persist the turn and trigger summarization if needed
         if session_id:
-            total_count = await self._save_turn(session_id, user_id, question, answer, self._token)
+            total_count = await self._memory.save_turn(session_id, user_id, question, answer)
             if total_count > COMPRESS_THRESHOLD:
-                asyncio.create_task(
-                    self._maybe_summarize(
-                        session_id, user_id, total_count, config,
-                        self._token, self._doctor_agent
-                    )
-                )
+                self._schedule_summarize(session_id, user_id, total_count, config)
 
         return {
             "answer": answer,
@@ -419,7 +342,7 @@ class Supervisor:
         # Load conversation history
         summary, recent_history = "", []
         if session_id:
-            summary, recent_history = await self._load_history(session_id, user_id, self._token)
+            summary, recent_history = await self._memory.load(session_id, user_id)
 
         # Classify the question (fast, non-streaming) — use a lightweight config for this call
         pre_state: AgentState = {
@@ -458,8 +381,6 @@ class Supervisor:
         answer_parts: list[str] = []
         sources: list[dict] = []
 
-        _NO_INFO = "I couldn't find relevant information in your uploaded documents to answer that question."
-
         if route == "rag":
             ctx = await self._rag_chain.build_context(
                 question=question,
@@ -471,8 +392,8 @@ class Supervisor:
             )
             sources = ctx["sources"]
             if ctx.get("no_context"):
-                yield f"data: {json.dumps({'token': _NO_INFO})}\n\n"
-                answer_parts.append(_NO_INFO)
+                yield f"data: {json.dumps({'token': NO_RELEVANT_DOCUMENTS_MESSAGE})}\n\n"
+                answer_parts.append(NO_RELEVANT_DOCUMENTS_MESSAGE)
             else:
                 async for chunk in self._llm.astream(ctx["messages"], config=config):
                     content = chunk.content
@@ -531,15 +452,8 @@ class Supervisor:
         # Persist conversation turn
         answer = "".join(answer_parts)
         if session_id and answer:
-            total_count = await self._save_turn(
-                session_id, user_id, question, answer, self._token
-            )
+            total_count = await self._memory.save_turn(session_id, user_id, question, answer)
             if total_count > COMPRESS_THRESHOLD:
-                asyncio.create_task(
-                    self._maybe_summarize(
-                        session_id, user_id, total_count, config,
-                        self._token, self._doctor_agent,
-                    )
-                )
+                self._schedule_summarize(session_id, user_id, total_count, config)
 
         yield f"data: {json.dumps({'sources': sources})}\n\n"

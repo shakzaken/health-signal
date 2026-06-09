@@ -43,9 +43,14 @@ class PatternDetectionAgent:
     symptoms, and supplements. Exposes a compiled subgraph the supervisor invokes directly.
     """
 
-    def __init__(self, llm: BaseChatModel, backend_url: str, token: str = "") -> None:
-        # search_documents calls the ai-agent query endpoint, not the backend
-        ai_agent_url = backend_url.replace(":8000", ":8001")
+    def __init__(
+        self, llm: BaseChatModel, backend_url: str, ai_agent_url: str, token: str = ""
+    ) -> None:
+        # search_documents issues a POST /query to the ai-agent's own HTTP endpoint.
+        # This is an intentional design boundary: the tool uses the public API so it
+        # benefits from the supervisor's classification, guardrails, and LangSmith tracing.
+        # Recursion risk is bounded because the nested request carries no session context,
+        # so the supervisor always routes it to "rag" (never back to pattern_detection).
         tools = [
             make_fetch_lab_results(backend_url, token),
             make_fetch_symptoms_in_range(backend_url, token),
@@ -72,6 +77,3 @@ class PatternDetectionAgent:
         messages.append(HumanMessage(content=question))
         return {"messages": messages, "sources": []}
 
-    async def analyze(self, question: str, config: RunnableConfig | None = None) -> dict:
-        final_state = await self.graph.ainvoke(self.initial_state(question), config=config)
-        return {"answer": final_state["messages"][-1].content, "sources": final_state["sources"]}

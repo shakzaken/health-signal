@@ -67,6 +67,3 @@ class TimelineAgent:
         messages.append(HumanMessage(content=question))
         return {"messages": messages, "sources": []}
 
-    async def summarize(self, question: str, config: RunnableConfig | None = None) -> dict:
-        final_state = await self.graph.ainvoke(self.initial_state(question), config=config)
-        return {"answer": final_state["messages"][-1].content, "sources": final_state["sources"]}

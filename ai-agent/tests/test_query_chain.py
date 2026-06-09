@@ -2,11 +2,16 @@
 Tests for the QueryChain class.
 
 The LLM and Retriever are mocked so tests are fast and don't cost API calls.
+
+Language-detection behaviour:
+  - English queries  → single retrieval (no translation LLM call)
+  - Non-English queries → dual retrieval: primary (original) + secondary (English translation)
 """
 
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from langchain_core.messages import HumanMessage, SystemMessage
 
 from rag.query_chain import QueryChain
 from rag.retriever import Retriever
@@ -56,44 +61,57 @@ async def test_answer_returns_answer_and_sources(chain):
 
 
 @pytest.mark.asyncio
-async def test_answer_calls_retriever_with_question(chain, mock_retriever, mock_llm):
-    # Hebrew question — no translation needed, retriever gets the original question
-    mock_llm.ainvoke.return_value = MagicMock(content="Your hemoglobin is within the normal range.")
-    await chain.answer("מה רמת ההמוגלובין שלי?")
-    mock_retriever.retrieve.assert_called_once()
-    call_args = mock_retriever.retrieve.call_args
-    assert "המוגלובין" in call_args.args[0]
-
-
-@pytest.mark.asyncio
-async def test_answer_translates_english_query_to_hebrew(mock_retriever, mock_llm):
-    """English questions should be translated to Hebrew before retrieval."""
-    translated = "מה רמת הכולסטרול שלי?"
-    # First ainvoke = translation, second = answer
+async def test_answer_calls_retriever_with_hebrew_question(mock_retriever, mock_llm):
+    """Hebrew query triggers dual retrieval: primary (Hebrew) + secondary (English translation)."""
+    english_translation = "What is my hemoglobin level?"
     mock_llm.ainvoke.side_effect = [
-        MagicMock(content=translated),
-        MagicMock(content="Your cholesterol is within range."),
+        MagicMock(content=english_translation),           # translation call
+        MagicMock(content="Your hemoglobin is fine."),    # answer call
     ]
     chain = QueryChain(retriever=mock_retriever, llm=mock_llm)
 
-    await chain.answer("What is my cholesterol?")
+    await chain.answer("מה רמת ההמוגלובין שלי?")
 
-    retrieval_query = mock_retriever.retrieve.call_args.args[0]
-    assert retrieval_query == translated
+    # Retriever is called twice: once with the original Hebrew, once with the English translation
+    assert mock_retriever.retrieve.call_count == 2
+    first_query = mock_retriever.retrieve.call_args_list[0].args[0]
+    second_query = mock_retriever.retrieve.call_args_list[1].args[0]
+    assert "המוגלובין" in first_query
+    assert second_query == english_translation
 
 
 @pytest.mark.asyncio
-async def test_answer_hebrew_query_skips_translation(mock_retriever, mock_llm):
-    """Hebrew questions go directly to retrieval without a translation call."""
-    mock_llm.ainvoke.return_value = MagicMock(content="תשובה בעברית.")
+async def test_hebrew_question_triggers_dual_retrieval(mock_retriever, mock_llm):
+    """Hebrew question → translation to English → secondary retrieval uses the English translation."""
+    english_translation = "What is my cholesterol level?"
+    mock_llm.ainvoke.side_effect = [
+        MagicMock(content=english_translation),                   # translation call
+        MagicMock(content="Your cholesterol is within range."),   # answer call
+    ]
     chain = QueryChain(retriever=mock_retriever, llm=mock_llm)
 
-    await chain.answer("מה אני אוכל?")
+    await chain.answer("מה רמת הכולסטרול שלי?")
 
-    # Only one LLM call — the final answer, no translation call
+    assert mock_retriever.retrieve.call_count == 2
+    # Second retrieval call uses the English translation
+    second_call_query = mock_retriever.retrieve.call_args_list[1].args[0]
+    assert second_call_query == english_translation
+
+
+@pytest.mark.asyncio
+async def test_english_question_uses_single_retrieval(mock_retriever, mock_llm):
+    """English questions go directly to retrieval — no translation LLM call."""
+    mock_llm.ainvoke.return_value = MagicMock(content="Here are your results.")
+    chain = QueryChain(retriever=mock_retriever, llm=mock_llm)
+
+    await chain.answer("What are my lab results?")
+
+    # Only one LLM call — the final answer; no translation call
     assert mock_llm.ainvoke.call_count == 1
+    # Retriever called exactly once with the original English question
+    assert mock_retriever.retrieve.call_count == 1
     retrieval_query = mock_retriever.retrieve.call_args.args[0]
-    assert "אוכל" in retrieval_query
+    assert "lab results" in retrieval_query.lower()
 
 
 @pytest.mark.asyncio
@@ -112,17 +130,16 @@ async def test_answer_passes_user_id_to_retriever(chain, mock_retriever):
 
 @pytest.mark.asyncio
 async def test_answer_returns_no_data_message_when_no_chunks(mock_llm):
+    """English question with empty retriever → no LLM call, returns the no-data message."""
     retriever = MagicMock(spec=Retriever)
     retriever.retrieve.return_value = []  # nothing in Qdrant
-    # English question → translation call happens, then no chunks → no answer call
-    mock_llm.ainvoke.return_value = MagicMock(content="מה התוצאות שלי?")
     chain = QueryChain(retriever=retriever, llm=mock_llm)
 
     result = await chain.answer("What are my results?")
     assert result["sources"] == []
     assert "couldn't find" in result["answer"].lower()
-    # Only the translation call should have been made — not the final answer call
-    assert mock_llm.ainvoke.call_count == 1
+    # English query → no translation call; no chunks → no answer call either
+    assert mock_llm.ainvoke.call_count == 0
 
 
 @pytest.mark.asyncio
@@ -137,6 +154,9 @@ async def test_answer_llm_receives_context_from_chunks(chain, mock_llm):
     await chain.answer("Summarize my results.")
     llm_call = mock_llm.ainvoke.call_args
     messages = llm_call.args[0]
-    # The human message should contain the chunk text as context
-    human_message = next(m for m in messages if m.__class__.__name__ == "HumanMessage")
-    assert "Hemoglobin" in human_message.content
+    # Context is injected as a SystemMessage, not in the HumanMessage
+    system_messages = [m for m in messages if isinstance(m, SystemMessage)]
+    context_message = next(
+        (m for m in system_messages if "Hemoglobin" in m.content), None
+    )
+    assert context_message is not None, "Expected chunk context in a SystemMessage"

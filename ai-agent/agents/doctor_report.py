@@ -80,21 +80,27 @@ class DoctorReportAgent:
 
     # ── Data fetching helpers ─────────────────────────────────────────────────
 
-    async def _fetch_abnormal_labs(self, period_days: int) -> str:
-        """Fetch lab results and return a summary of abnormal markers."""
+    async def _get_json(self, url: str, params: dict | None = None) -> list | None:
+        """GET the URL and return parsed JSON, or None on failure."""
         try:
             async with httpx.AsyncClient() as client:
-                response = await client.get(
-                    f"{self._backend_url}/lab-results",
+                resp = await client.get(
+                    url,
                     headers=self._auth_headers,
+                    params=params,
                     timeout=15.0,
                 )
-                response.raise_for_status()
-                results = response.json()
+                resp.raise_for_status()
+                return resp.json()
         except Exception as e:
-            logger.warning(f"Failed to fetch lab results: {e}")
-            return "Could not fetch lab results."
+            logger.warning(f"Backend request failed — url={url} error={e}")
+            return None
 
+    async def _fetch_abnormal_labs(self, period_days: int) -> str:
+        """Fetch lab results and return a summary of abnormal markers."""
+        results = await self._get_json(f"{self._backend_url}/lab-results")
+        if results is None:
+            return "Could not fetch lab results."
         if not results:
             return "No lab results found."
 
@@ -130,20 +136,11 @@ class DoctorReportAgent:
     async def _fetch_symptoms(self, period_days: int) -> str:
         """Fetch recent symptom entries."""
         from_date = (date.today() - timedelta(days=period_days)).isoformat()
-        try:
-            async with httpx.AsyncClient() as client:
-                response = await client.get(
-                    f"{self._backend_url}/symptom-entries",
-                    headers=self._auth_headers,
-                    params={"from": from_date},
-                    timeout=15.0,
-                )
-                response.raise_for_status()
-                entries = response.json()
-        except Exception as e:
-            logger.warning(f"Failed to fetch symptoms: {e}")
+        entries = await self._get_json(
+            f"{self._backend_url}/symptom-entries", params={"from": from_date}
+        )
+        if entries is None:
             return "Could not fetch symptom data."
-
         if not entries:
             return "No symptoms recorded in this period."
 
@@ -158,20 +155,11 @@ class DoctorReportAgent:
     async def _fetch_supplements(self, period_days: int) -> str:
         """Fetch supplement entries from the period."""
         from_date = (date.today() - timedelta(days=period_days)).isoformat()
-        try:
-            async with httpx.AsyncClient() as client:
-                response = await client.get(
-                    f"{self._backend_url}/supplement-entries",
-                    headers=self._auth_headers,
-                    params={"from": from_date},
-                    timeout=15.0,
-                )
-                response.raise_for_status()
-                entries = response.json()
-        except Exception as e:
-            logger.warning(f"Failed to fetch supplements: {e}")
+        entries = await self._get_json(
+            f"{self._backend_url}/supplement-entries", params={"from": from_date}
+        )
+        if entries is None:
             return "Could not fetch supplement data."
-
         if not entries:
             return "No supplement entries recorded in this period."
 
