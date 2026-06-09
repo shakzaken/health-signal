@@ -1,8 +1,9 @@
 from langchain_core.language_models.chat_models import BaseChatModel
-from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
 from langchain_core.runnables.config import RunnableConfig
 
 from core.guardrails import SAFETY_INSTRUCTION
+from core.language import is_english
 from core.logger import get_logger
 from rag.retriever import Retriever
 
@@ -29,6 +30,10 @@ Guidelines:
 TRANSLATE_TO_ENGLISH_PROMPT = """You are a translator. Translate the following text to English.
 Return only the translated text, nothing else."""
 
+NO_RELEVANT_DOCUMENTS_MESSAGE = (
+    "I couldn't find relevant information in your uploaded documents to answer that question."
+)
+
 
 class QueryChain:
     """
@@ -48,14 +53,6 @@ class QueryChain:
     def __init__(self, retriever: Retriever, llm: BaseChatModel) -> None:
         self._retriever = retriever
         self._llm = llm
-
-    def _is_english(self, text: str) -> bool:
-        """Return True if the text is predominantly ASCII alpha characters."""
-        ascii_chars = sum(1 for c in text if ord(c) < 128 and c.isalpha())
-        total_alpha = sum(1 for c in text if c.isalpha())
-        if total_alpha == 0:
-            return True
-        return (ascii_chars / total_alpha) > 0.8
 
     async def _translate_to_english(self, text: str, config: RunnableConfig | None = None) -> str:
         """Translate text to English using the LLM."""
@@ -77,7 +74,7 @@ class QueryChain:
                 merged.append(chunk)
         return merged[:top_k]
 
-    async def answer(
+    async def build_context(
         self,
         question: str,
         user_id: str = "",
@@ -86,23 +83,17 @@ class QueryChain:
         recent_history: list[dict] | None = None,
         config: RunnableConfig | None = None,
     ) -> dict:
-        """
-        1. Retrieve chunks using the original question.
-        2. If query is not English, also retrieve with an English translation and merge.
-        3. Build context string from merged chunks.
-        4. Call the LLM with context + conversation history + original question.
-        5. Return answer text and source chunks.
-
-        config is threaded through every LLM call so all spans appear nested
-        under the parent trace in LangSmith.
-        """
+        """Build the prompt messages and retrieve chunks, WITHOUT calling the LLM.
+        Returns {"messages": [...], "sources": [...], "no_context": bool} for the
+        caller to either invoke or stream the LLM."""
         primary_chunks = self._retriever.retrieve(
             question, user_id=user_id, document_type=document_type
         )
 
-        # Dual retrieval: if the query is not English, also search with English translation
-        # so Hebrew queries can find English journal/supplement documents
-        if not self._is_english(question):
+        # Dual retrieval: if the query is not English, also search with an English
+        # translation so Hebrew queries can find English journal/supplement documents.
+        question_is_english = is_english(question)
+        if not question_is_english:
             try:
                 english_query = await self._translate_to_english(question, config=config)
                 logger.debug(f"Dual retrieval — translated query: {english_query[:80]}")
@@ -116,9 +107,7 @@ class QueryChain:
         else:
             chunks = primary_chunks
 
-        # Build the message list — inject conversation history before the question
-        messages: list = [SystemMessage(content=SYSTEM_PROMPT)]
-
+        messages: list[BaseMessage] = [SystemMessage(content=SYSTEM_PROMPT)]
         has_history = bool(recent_history or summary)
 
         if summary:
@@ -130,12 +119,10 @@ class QueryChain:
             else:
                 messages.append(AIMessage(content=msg["content"]))
 
-        # No document chunks and no conversation history → nothing to answer from
         if not chunks and not has_history:
-            return {
-                "answer": "I couldn't find relevant information in your uploaded documents to answer that question.",
-                "sources": [],
-            }
+            # Return empty sources with no_context flag — callers use NO_RELEVANT_DOCUMENTS_MESSAGE
+            messages.append(HumanMessage(content=question))
+            return {"messages": messages, "sources": [], "no_context": True}
 
         # Explicitly tell the LLM when there is NO prior conversation history.
         # Without this, it may hallucinate a conversation from document content.
@@ -165,100 +152,7 @@ class QueryChain:
         # to match.  This must be placed immediately before the question so the
         # instruction is as prominent as possible, overriding any language influence
         # from Hebrew document chunks.
-        if self._is_english(question):
-            messages.append(SystemMessage(
-                content=(
-                    "CRITICAL: The user's question is in English. "
-                    "You MUST reply in English only. "
-                    "Do NOT switch to Hebrew or any other language, "
-                    "even if the retrieved document excerpts are written in Hebrew."
-                )
-            ))
-        else:
-            messages.append(SystemMessage(
-                content=(
-                    "CRITICAL: The user's question is NOT in English. "
-                    "You MUST reply in the same language as the user's question. "
-                    "Do NOT switch to English."
-                )
-            ))
-
-        # Current question always goes last as a plain HumanMessage
-        messages.append(HumanMessage(content=question))
-
-        response = await self._llm.ainvoke(messages, config=config)
-
-        return {
-            "answer": response.content,
-            "sources": chunks,
-        }
-
-    async def build_context(
-        self,
-        question: str,
-        user_id: str = "",
-        document_type: str | None = None,
-        summary: str = "",
-        recent_history: list[dict] | None = None,
-        config: RunnableConfig | None = None,
-    ) -> dict:
-        """Build the prompt messages and retrieve chunks, WITHOUT calling the LLM.
-        Returns {"messages": [...], "sources": [...]} for the caller to use with astream."""
-        primary_chunks = self._retriever.retrieve(
-            question, user_id=user_id, document_type=document_type
-        )
-
-        if not self._is_english(question):
-            try:
-                english_query = await self._translate_to_english(question, config=config)
-                secondary_chunks = self._retriever.retrieve(
-                    english_query, user_id=user_id, document_type=document_type
-                )
-                chunks = self._merge_chunks(primary_chunks, secondary_chunks, top_k=5)
-            except Exception as e:
-                logger.warning(f"Translation for dual retrieval failed — {e}")
-                chunks = primary_chunks
-        else:
-            chunks = primary_chunks
-
-        messages: list = [SystemMessage(content=SYSTEM_PROMPT)]
-        has_history = bool(recent_history or summary)
-
-        if summary:
-            messages.append(SystemMessage(content=f"Summary of earlier conversation:\n{summary}"))
-
-        for msg in (recent_history or []):
-            if msg["role"] == "user":
-                messages.append(HumanMessage(content=msg["content"]))
-            else:
-                messages.append(AIMessage(content=msg["content"]))
-
-        if not chunks and not has_history:
-            # Return empty sources + a fixed "no info" message set
-            messages.append(HumanMessage(content=question))
-            return {"messages": messages, "sources": [], "no_context": True}
-
-        if not has_history:
-            messages.append(SystemMessage(
-                content=(
-                    "IMPORTANT: This is the very start of a new conversation. "
-                    "There is NO prior conversation history between you and the user. "
-                    "If the user asks what you were previously discussing, or refers to any "
-                    "earlier exchange, tell them clearly that this is a brand-new session "
-                    "with no previous context."
-                )
-            ))
-
-        if chunks:
-            context = "\n\n---\n\n".join(
-                f"[{c['document_type']} | {c['source_date'] or 'unknown date'} | {c['filename']}]\n{c['text']}"
-                for c in chunks
-            )
-            messages.append(
-                SystemMessage(content=f"Relevant context from the user's health documents:\n\n{context}")
-            )
-
-        if self._is_english(question):
+        if question_is_english:
             messages.append(SystemMessage(
                 content=(
                     "CRITICAL: The user's question is in English. "
@@ -278,3 +172,35 @@ class QueryChain:
 
         messages.append(HumanMessage(content=question))
         return {"messages": messages, "sources": chunks, "no_context": False}
+
+    async def answer(
+        self,
+        question: str,
+        user_id: str = "",
+        document_type: str | None = None,
+        summary: str = "",
+        recent_history: list[dict] | None = None,
+        config: RunnableConfig | None = None,
+    ) -> dict:
+        """
+        1. Retrieve chunks using the original question.
+        2. If query is not English, also retrieve with an English translation and merge.
+        3. Build context string from merged chunks.
+        4. Call the LLM with context + conversation history + original question.
+        5. Return answer text and source chunks.
+
+        config is threaded through every LLM call so all spans appear nested
+        under the parent trace in LangSmith.
+        """
+        ctx = await self.build_context(
+            question,
+            user_id=user_id,
+            document_type=document_type,
+            summary=summary,
+            recent_history=recent_history,
+            config=config,
+        )
+        if ctx.get("no_context"):
+            return {"answer": NO_RELEVANT_DOCUMENTS_MESSAGE, "sources": []}
+        response = await self._llm.ainvoke(ctx["messages"], config=config)
+        return {"answer": response.content, "sources": ctx["sources"]}

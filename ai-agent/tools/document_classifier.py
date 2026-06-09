@@ -36,6 +36,8 @@ class ClassificationResult(BaseModel):
 
 
 class DocumentClassifier:
+    """Classifies a document into a known type using LLM structured output."""
+
     def __init__(self, llm: BaseChatModel) -> None:
         self._chain = llm.with_structured_output(ClassificationResult)
 

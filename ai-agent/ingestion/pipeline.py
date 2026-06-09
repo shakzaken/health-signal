@@ -68,6 +68,12 @@ class IngestionPipeline:
         filename: str,
         user_id: str | None = None,
     ) -> dict:
+        if not user_id:
+            logger.warning(
+                f"No user_id supplied for document_id={document_id} — "
+                f"falling back to DEFAULT_USER_ID='{DEFAULT_USER_ID}'. "
+                "This document will not be retrievable by any real user."
+            )
         user_id = user_id or DEFAULT_USER_ID
         logger.info(f"Ingestion start — document_id={document_id} file={file_path}")
         config: RunnableConfig = {
@@ -130,7 +136,6 @@ class IngestionPipeline:
                 "success": True,
                 "document_id": document_id,
                 "chunks_stored": len(chunks),
-                "raw_text": raw_text,
                 "detected_document_type": detected_document_type,
                 **extracted,
             }
