@@ -2,7 +2,7 @@ import { useState } from 'react'
 import type { useChat } from '../hooks/useChat'
 import MessageList from '../components/MessageList'
 import ChatInput from '../components/ChatInput'
-import { FilterIcon, ChevronIcon, PlusIcon } from '../components/Icons'
+import { PlusIcon } from '../components/Icons'
 
 type ChatState = ReturnType<typeof useChat>
 
@@ -10,25 +10,14 @@ interface ChatPageProps {
   chatState: ChatState
 }
 
-const DOCUMENT_TYPES = [
-  { value: '', label: 'All documents' },
-  { value: 'lab_result', label: 'Blood tests' },
-  { value: 'symptom_log', label: 'Symptom logs' },
-  { value: 'supplement_log', label: 'Supplement records' },
-  { value: 'doctor_note', label: 'Doctor notes' },
-]
-
 export default function ChatPage({ chatState }: ChatPageProps) {
   const { messages, isLoading, sources, error, sendMessage, newConversation } = chatState
-  const [documentType, setDocumentType] = useState('')
-  const [filterOpen, setFilterOpen] = useState(false)
   const [inputValue, setInputValue] = useState('')
 
-  const currentFilterLabel = DOCUMENT_TYPES.find((t) => t.value === documentType)?.label ?? 'All documents'
   const questionCount = messages.filter((m) => m.role === 'user').length
 
   function handleSend(text: string) {
-    sendMessage(text, documentType || undefined)
+    sendMessage(text)
     setInputValue('')
   }
 
@@ -57,94 +46,6 @@ export default function ChatPage({ chatState }: ChatPageProps) {
           </div>
         </div>
 
-        {/* Right side: filter + new */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-        {/* Filter dropdown */}
-        <div style={{ position: 'relative' }}>
-          <button
-            onClick={() => setFilterOpen((o) => !o)}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              padding: '8px 12px',
-              border: '1px solid var(--border-strong)',
-              borderRadius: 'calc(var(--radius) * 0.7)',
-              fontSize: 13,
-              color: 'var(--sub)',
-              background: 'var(--surface)',
-              cursor: 'pointer',
-              fontFamily: 'inherit',
-            }}
-          >
-            <FilterIcon size={14} color="var(--accent)" />
-            {currentFilterLabel}
-            <span
-              style={{
-                display: 'flex',
-                transition: 'transform .2s',
-                transform: filterOpen ? 'rotate(180deg)' : 'none',
-              }}
-            >
-              <ChevronIcon size={12} color="var(--faint)" />
-            </span>
-          </button>
-
-          {filterOpen && (
-            <div
-              style={{
-                position: 'absolute',
-                top: 'calc(100% + 6px)',
-                right: 0,
-                zIndex: 20,
-                background: 'var(--surface)',
-                border: '1px solid var(--border)',
-                borderRadius: 'calc(var(--radius) * 0.7)',
-                boxShadow: '0 8px 28px rgba(20,30,50,.14)',
-                padding: 5,
-                width: 210,
-              }}
-            >
-              {DOCUMENT_TYPES.map((t) => (
-                <button
-                  key={t.value}
-                  onClick={() => {
-                    setDocumentType(t.value)
-                    setFilterOpen(false)
-                  }}
-                  style={{
-                    width: '100%',
-                    textAlign: 'left',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 9,
-                    padding: '9px 10px',
-                    border: 'none',
-                    background: t.value === documentType ? 'var(--accent-soft)' : 'transparent',
-                    borderRadius: 7,
-                    fontSize: 13,
-                    color: t.value === documentType ? 'var(--accent-ink)' : 'var(--sub)',
-                    cursor: 'pointer',
-                    fontFamily: 'inherit',
-                    fontWeight: t.value === documentType ? 600 : 400,
-                  }}
-                >
-                  <span
-                    style={{
-                      width: 6,
-                      height: 6,
-                      borderRadius: '50%',
-                      flexShrink: 0,
-                      background: t.value === documentType ? 'var(--accent)' : 'var(--border-strong)',
-                    }}
-                  />
-                  {t.label}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
         {/* New conversation */}
         <button
           onClick={newConversation}
@@ -166,7 +67,6 @@ export default function ChatPage({ chatState }: ChatPageProps) {
           <PlusIcon size={14} color="var(--accent)" sw={2} />
           New
         </button>
-        </div> {/* end right-side group */}
       </div>
 
       {/* Messages */}

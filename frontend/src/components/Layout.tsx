@@ -58,7 +58,7 @@ function NavItem({
 }
 
 export default function Layout({ activeTab, onTabChange, children, sessions, onRestoreSession }: LayoutProps) {
-  const { logout } = useAuth()
+  const { logout, email } = useAuth()
   return (
     <div
       style={{
@@ -213,6 +213,52 @@ export default function Layout({ activeTab, onTabChange, children, sessions, onR
             borderTop: '1px solid var(--border)',
           }}
         >
+          {email && (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                marginBottom: 8,
+                padding: '7px 8px',
+                borderRadius: 'calc(var(--radius) * 0.6)',
+                background: 'var(--surface)',
+                border: '1px solid var(--border)',
+              }}
+            >
+              <div
+                style={{
+                  width: 26,
+                  height: 26,
+                  borderRadius: '50%',
+                  background: 'var(--accent)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 11,
+                  fontWeight: 700,
+                  color: '#fff',
+                  flexShrink: 0,
+                  letterSpacing: '0.01em',
+                }}
+              >
+                {email[0].toUpperCase()}
+              </div>
+              <span
+                style={{
+                  fontSize: 12,
+                  color: 'var(--sub)',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                  fontWeight: 500,
+                }}
+                title={email}
+              >
+                {email}
+              </span>
+            </div>
+          )}
           <div style={{ fontSize: 12, color: 'var(--faint)', lineHeight: 1.5 }}>
             Personal health assistant
           </div>

@@ -15,7 +15,7 @@ Extract all lab test markers from the text below. For each marker extract:
 - status: one of "normal", "low", "high", "borderline_low", "borderline_high" — infer from value vs reference range if not stated explicitly
 
 Also extract:
-- test_date: the date of the test in ISO format (YYYY-MM-DD) if present, else null
+- test_date: the date the sample was COLLECTED (not the report/issue date) in ISO format (YYYY-MM-DD). Look for labels like "Date Collected", "Collection Date", "Sample Date", "Date of Test". If only one date is present, use that. If unsure, prefer the earlier date.
 - lab_name: the name of the laboratory if present, else null
 
 Return only markers that have a clear numeric value. Skip headers, notes, and non-numeric entries.
