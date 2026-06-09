@@ -17,6 +17,7 @@ class IngestRequest(BaseModel):
     document_type: Optional[str] = None
     source_date: Optional[str] = None
     filename: str = ""
+    user_id: Optional[str] = None
 
 
 class IngestResponse(BaseModel):
@@ -42,6 +43,7 @@ async def ingest_document(
         document_type=request.document_type,
         source_date=request.source_date,
         filename=request.filename or request.file_path.split("/")[-1],
+        user_id=request.user_id,
     )
     if not result["success"]:
         logger.error(f"Ingest failed — document_id={request.document_id} error={result.get('error')}")

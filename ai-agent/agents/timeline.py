@@ -8,6 +8,7 @@ from agents.graph_factory import create_tool_calling_graph
 from agents.tools.lab_tools import make_fetch_lab_results
 from agents.tools.supplement_tools import make_fetch_all_supplements
 from agents.tools.timeline_tools import make_fetch_timeline
+from core.guardrails import SAFETY_INSTRUCTION
 
 SYSTEM_PROMPT = """You are a personal health timeline assistant.
 
@@ -31,7 +32,7 @@ Additional guidelines:
 - Highlight what changed, what improved, what worsened
 - Keep the tone calm, factual, and easy to understand
 - Answer in the same language the user asked in
-"""
+""" + SAFETY_INSTRUCTION
 
 
 class TimelineAgent:

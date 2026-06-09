@@ -66,12 +66,20 @@ class IngestionPipeline:
         document_type: str | None,
         source_date: str | None,
         filename: str,
-        user_id: str = DEFAULT_USER_ID,
+        user_id: str | None = None,
     ) -> dict:
+        user_id = user_id or DEFAULT_USER_ID
         logger.info(f"Ingestion start — document_id={document_id} file={file_path}")
         config: RunnableConfig = {
             "callbacks": [LangChainTracer()],
             "run_name": f"ingestion/{filename}",
+            "metadata": {
+                "user_id": user_id,
+                "document_id": document_id,
+                "filename": filename,
+                "document_type": document_type or "auto",
+            },
+            "tags": ["ingestion", document_type or "auto"],
         }
 
         try:

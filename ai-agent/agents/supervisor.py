@@ -32,15 +32,20 @@ Classify the user's question into one of five categories:
   (e.g. "what is my hemoglobin?", "is my cholesterol getting worse?", "what changed in my last blood test?")
 
 - "pattern_detection" — the question asks about correlations, causes, or patterns across different
-  types of health data (labs, symptoms, supplements) over time
+  types of health data (labs, symptoms, supplements) over time; OR asks how a symptom or feeling
+  changed over time (since this requires cross-referencing symptom diary with labs)
   (e.g. "why was I so tired in January?", "did my fatigue correlate with low Vitamin D?",
-  "what patterns do you see in my health data?", "did anything change after I started the supplement?")
+  "what patterns do you see in my health data?", "did anything change after I started the supplement?",
+  "did my morning stiffness change over time?", "how did my energy levels change?",
+  "did my symptoms improve after starting supplements?", "was there a relationship between X and Y?")
 
 - "timeline" — the question asks for a summary or chronological overview of health events
-  over a period of time, OR asks when something started/stopped/happened
+  over a period of time, OR asks when something started/stopped/happened, OR asks about
+  current status of supplements (what am I taking now, what do I take currently)
   (e.g. "what happened to my health in the last 6 months?", "give me a health summary for 2024",
   "what health events happened around March?", "summarize my health history",
-  "when did I start taking supplements?", "when did I stop iron?", "what supplements did I take and when?")
+  "when did I start taking supplements?", "when did I stop iron?", "what supplements did I take and when?",
+  "what supplements am I currently taking?", "what am I taking right now?", "are my supplements working?")
 
 - "doctor_report" — the user wants to generate a structured report to bring to a doctor appointment,
   or wants a comprehensive health summary across all data types
@@ -235,35 +240,38 @@ class Supervisor:
         return {**state, "route": route}
 
     async def _run_lab_analysis(self, state: AgentState, config: RunnableConfig) -> AgentState:
+        agent_config: RunnableConfig = {**config, "run_name": "lab_analysis_agent", "tags": config.get("tags", []) + ["lab_analysis_agent"]}
         final = await self._lab_agent.graph.ainvoke(
             self._lab_agent.initial_state(
                 state["question"],
                 summary=state["summary"],
                 recent_history=state["recent_history"],
             ),
-            config=config,
+            config=agent_config,
         )
         return {**state, "answer": final["messages"][-1].content, "sources": final["sources"]}
 
     async def _run_pattern_detection(self, state: AgentState, config: RunnableConfig) -> AgentState:
+        agent_config: RunnableConfig = {**config, "run_name": "pattern_detection_agent", "tags": config.get("tags", []) + ["pattern_detection_agent"]}
         final = await self._pattern_agent.graph.ainvoke(
             self._pattern_agent.initial_state(
                 state["question"],
                 summary=state["summary"],
                 recent_history=state["recent_history"],
             ),
-            config=config,
+            config=agent_config,
         )
         return {**state, "answer": final["messages"][-1].content, "sources": final["sources"]}
 
     async def _run_timeline(self, state: AgentState, config: RunnableConfig) -> AgentState:
+        agent_config: RunnableConfig = {**config, "run_name": "timeline_agent", "tags": config.get("tags", []) + ["timeline_agent"]}
         final = await self._timeline_agent.graph.ainvoke(
             self._timeline_agent.initial_state(
                 state["question"],
                 summary=state["summary"],
                 recent_history=state["recent_history"],
             ),
-            config=config,
+            config=agent_config,
         )
         return {**state, "answer": final["messages"][-1].content, "sources": final["sources"]}
 
@@ -352,6 +360,11 @@ class Supervisor:
         config: RunnableConfig = {
             "callbacks": [LangChainTracer()],
             "run_name": "supervisor",
+            "metadata": {
+                "user_id": user_id,
+                "session_id": str(session_id) if session_id else None,
+            },
+            "tags": ["supervisor"],
         }
 
         # Load conversation history if session_id provided
@@ -403,17 +416,12 @@ class Supervisor:
         Token events: {"token": "..."}
         Sources event (last): {"sources": [...]}
         """
-        config: RunnableConfig = {
-            "callbacks": [LangChainTracer()],
-            "run_name": "supervisor_stream",
-        }
-
         # Load conversation history
         summary, recent_history = "", []
         if session_id:
             summary, recent_history = await self._load_history(session_id, user_id, self._token)
 
-        # Classify the question (fast, non-streaming)
+        # Classify the question (fast, non-streaming) — use a lightweight config for this call
         pre_state: AgentState = {
             "question": question,
             "user_id": user_id,
@@ -425,9 +433,27 @@ class Supervisor:
             "sources": [],
             "route": "",
         }
-        classified = await self._classify(pre_state, config)
+        classify_config: RunnableConfig = {
+            "callbacks": [LangChainTracer()],
+            "run_name": "supervisor_classify",
+            "metadata": {"user_id": user_id, "session_id": str(session_id) if session_id else None},
+            "tags": ["supervisor", "classify"],
+        }
+        classified = await self._classify(pre_state, classify_config)
         route = classified["route"]
         logger.info(f"Stream — classified route={route}")
+
+        # Now build the main streaming config with route known
+        config: RunnableConfig = {
+            "callbacks": [LangChainTracer()],
+            "run_name": "supervisor_stream",
+            "metadata": {
+                "user_id": user_id,
+                "session_id": str(session_id) if session_id else None,
+                "route": route,
+            },
+            "tags": ["supervisor_stream", route],
+        }
 
         answer_parts: list[str] = []
         sources: list[dict] = []
@@ -473,11 +499,21 @@ class Supervisor:
                 "pattern_detection": self._pattern_agent,
                 "timeline": self._timeline_agent,
             }
+            agent_run_names = {
+                "lab_analysis": "lab_analysis_agent",
+                "pattern_detection": "pattern_detection_agent",
+                "timeline": "timeline_agent",
+            }
             agent = agent_map[route]
             agent_state = agent.initial_state(question, summary, recent_history)
+            agent_config: RunnableConfig = {
+                **config,
+                "run_name": agent_run_names[route],
+                "tags": config.get("tags", []) + [agent_run_names[route]],
+            }
 
             async for event in agent.graph.astream_events(
-                agent_state, config=config, version="v2"
+                agent_state, config=agent_config, version="v2"
             ):
                 kind = event["event"]
                 if kind == "on_chat_model_stream":

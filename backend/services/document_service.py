@@ -42,7 +42,7 @@ class DocumentService:
         content_hash = hashlib.sha256(content).hexdigest()
 
         # Reject duplicate uploads for the same user
-        existing = await self.repo.find_by_hash(content_hash)
+        existing = await self.repo.find_by_hash(content_hash, user_id=user_id)
         if existing:
             logger.warning(f"Duplicate upload rejected — hash={content_hash} existing_id={existing.id}")
             raise HTTPException(
@@ -89,6 +89,7 @@ class DocumentService:
             "document_type": document.document_type.value if document.document_type else None,
             "source_date": document.source_date.isoformat() if document.source_date else None,
             "filename": document.filename,
+            "user_id": str(document.user_id) if document.user_id else None,
         }
         logger.info(f"Triggering ingestion — document_id={document.id} ai_agent_url={settings.ai_agent_url}")
         try:

@@ -1,0 +1,62 @@
+Supplement Log — Maya Cohen — 2024
+=====================================
+
+Started after blood test results of 08/02/2024 showed low Vitamin D, low ferritin, and elevated CRP.
+
+---
+
+VITAMIN D3 (cholecalciferol)
+Brand: Solgar
+Dose: 2000 IU per day
+Form: softgel capsule
+Started: February 25, 2024
+Reason: Blood test showed Vitamin D at 18 ng/mL (ref 30-100). Doctor recommended supplementation.
+Note: Dose increased to 4000 IU per day on June 28, 2024 after follow-up test showed only minor improvement to 22 ng/mL.
+Current status: Ongoing as of November 2024 (4000 IU/day)
+
+---
+
+IRON BISGLYCINATE
+Brand: Solgar Gentle Iron
+Dose: 25 mg per day
+Form: capsule (bisglycinate form — gentler on stomach than ferrous sulfate)
+Started: March 3, 2024
+Reason: Ferritin at 11 µg/L (ref 15-150), Hemoglobin slightly low at 11.8 g/dL. Doctor recommended iron supplementation.
+Timing: Taken in the morning on empty stomach with vitamin C (orange juice) to improve absorption.
+Note: No significant GI side effects with bisglycinate form.
+Stopped: October 20, 2024
+Reason for stopping: November 2024 blood test (taken November 14) confirmed ferritin normalized to 28 µg/L and hemoglobin 13.1 g/dL. Discussed with Dr. Levi — agreed to stop and recheck in 6 months.
+
+---
+
+OMEGA-3 FISH OIL
+Brand: Nordic Naturals Ultimate Omega
+Dose: 1000 mg per day (EPA 650mg / DHA 450mg)
+Form: softgel capsule
+Started: March 3, 2024
+Reason: Self-initiated. Read about omega-3 and inflammation — wanted to try alongside the iron and Vitamin D given elevated CRP (12.4 mg/L).
+Note: No side effects. CRP normalized by November 2024 (2.3 mg/L) — unclear how much fish oil contributed vs. other changes.
+Current status: Ongoing as of November 2024
+
+---
+
+MAGNESIUM GLYCINATE
+Brand: Now Foods
+Dose: 200 mg per day
+Form: capsule
+Started: July 15, 2024
+Reason: Self-initiated after reading about magnesium and sleep quality / muscle tension. Seemed relevant given joint stiffness and sleep issues.
+Timing: Taken before bed.
+Note: Sleep quality seems improved — hard to attribute to magnesium specifically given other changes at the same time.
+Current status: Ongoing as of November 2024
+
+---
+
+SUMMARY TABLE
+=============
+Supplement          | Start Date    | End Date      | Dose           | Status
+--------------------|---------------|---------------|----------------|----------
+Vitamin D3          | Feb 25, 2024  | Ongoing       | 4000 IU/day    | Active
+Iron Bisglycinate   | Mar 3, 2024   | Oct 20, 2024  | 25 mg/day      | Stopped
+Omega-3 Fish Oil    | Mar 3, 2024   | Ongoing       | 1000 mg/day    | Active
+Magnesium Glycinate | Jul 15, 2024  | Ongoing       | 200 mg/day     | Active

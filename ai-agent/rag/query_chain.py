@@ -2,6 +2,7 @@ from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_core.runnables.config import RunnableConfig
 
+from core.guardrails import SAFETY_INSTRUCTION
 from core.logger import get_logger
 from rag.retriever import Retriever
 
@@ -23,7 +24,7 @@ Guidelines:
 - Be calm and factual — avoid alarmist language
 - If neither the conversation history nor the health documents contain enough information to answer, say so clearly
 - Always answer in the same language the user asked the question in
-"""
+""" + SAFETY_INSTRUCTION
 
 TRANSLATE_TO_ENGLISH_PROMPT = """You are a translator. Translate the following text to English.
 Return only the translated text, nothing else."""
