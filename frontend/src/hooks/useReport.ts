@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react'
-import { generateReport } from '../api/aiAgent'
+import { generateReport } from '../api/backend'
 
 export function useReport() {
   const [report, setReport] = useState('')

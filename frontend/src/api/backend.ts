@@ -1,4 +1,4 @@
-import type { DocumentResponse } from '../types'
+import type { DocumentResponse, SourceChunk } from '../types'
 
 const BASE_URL = import.meta.env.VITE_BACKEND_URL ?? 'http://localhost:8000'
 const TOKEN_KEY = 'hs_token'
@@ -62,4 +62,100 @@ export async function getDocumentStatus(id: string): Promise<DocumentResponse> {
 
 export async function listDocuments(): Promise<DocumentResponse[]> {
   return request<DocumentResponse[]>('/documents')
+}
+
+// ── AI agent (proxied through backend) ────────────────────────────────────
+
+export interface QueryResponse {
+  answer: string
+  sources: SourceChunk[]
+}
+
+export interface ReportResponse {
+  report: string
+}
+
+export type StreamEvent =
+  | { token: string; sources?: never }
+  | { sources: SourceChunk[]; token?: never }
+
+export async function sendQuery(
+  question: string,
+  sessionId: string,
+  documentType?: string,
+): Promise<QueryResponse> {
+  return request<QueryResponse>('/ai/query', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      question,
+      session_id: sessionId,
+      document_type: documentType ?? null,
+    }),
+  })
+}
+
+export async function* sendQueryStream(
+  question: string,
+  sessionId: string,
+  documentType?: string,
+): AsyncGenerator<StreamEvent> {
+  const token = getToken()
+  const res = await fetch(`${BASE_URL}/ai/query/stream`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'text/event-stream',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify({
+      question,
+      session_id: sessionId,
+      document_type: documentType ?? null,
+    }),
+  })
+
+  if (res.status === 401) {
+    localStorage.removeItem(TOKEN_KEY)
+    window.location.reload()
+    throw new Error('Session expired')
+  }
+  if (!res.ok) {
+    const text = await res.text().catch(() => res.statusText)
+    throw new Error(`${res.status}: ${text}`)
+  }
+
+  const reader = res.body!.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+
+    buffer += decoder.decode(value, { stream: true })
+    const lines = buffer.split('\n')
+    buffer = lines.pop() ?? ''
+
+    for (const line of lines) {
+      if (line.startsWith('data: ')) {
+        const data = line.slice(6).trim()
+        if (data) {
+          try {
+            yield JSON.parse(data) as StreamEvent
+          } catch {
+            // ignore malformed events
+          }
+        }
+      }
+    }
+  }
+}
+
+export async function generateReport(periodDays: number): Promise<ReportResponse> {
+  return request<ReportResponse>('/ai/report/generate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ period_days: periodDays }),
+  })
 }

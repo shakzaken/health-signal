@@ -4,7 +4,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from api.routes import auth, conversations, documents, health, lab_results, supplements, symptoms, timeline
+from api.routes import ai_agent, auth, conversations, documents, health, lab_results, supplements, symptoms, timeline
 from core.config import settings
 from core.logger import get_logger
 
@@ -27,15 +27,17 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+if settings.environment == "dev":
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
 app.include_router(health.router)
 app.include_router(auth.router)
+app.include_router(ai_agent.router)
 app.include_router(documents.router)
 app.include_router(lab_results.router)
 app.include_router(symptoms.router)
