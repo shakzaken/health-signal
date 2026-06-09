@@ -64,3 +64,6 @@ backend/alembic/versions/__pycache__/
 
 # Jupyter
 .ipynb_checkpoints/
+
+# Slides (presentations and generators)
+docs/slides/

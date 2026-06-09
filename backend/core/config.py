@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     secret_key: str
     ai_agent_url: str = "http://localhost:8001"
     file_storage_path: str = "./uploads"
+    environment: str = "production"
 
 
 settings = Settings()

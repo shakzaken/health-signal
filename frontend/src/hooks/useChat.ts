@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react'
 import type { Message, SourceChunk, Session } from '../types'
-import { sendQueryStream } from '../api/aiAgent'
+import { sendQueryStream } from '../api/backend'
 
 const SESSIONS_KEY = 'hs_sessions'
 
