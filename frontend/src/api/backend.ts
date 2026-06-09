@@ -82,23 +82,17 @@ export type StreamEvent =
 export async function sendQuery(
   question: string,
   sessionId: string,
-  documentType?: string,
 ): Promise<QueryResponse> {
   return request<QueryResponse>('/ai/query', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      question,
-      session_id: sessionId,
-      document_type: documentType ?? null,
-    }),
+    body: JSON.stringify({ question, session_id: sessionId }),
   })
 }
 
 export async function* sendQueryStream(
   question: string,
   sessionId: string,
-  documentType?: string,
 ): AsyncGenerator<StreamEvent> {
   const token = getToken()
   const res = await fetch(`${BASE_URL}/ai/query/stream`, {
@@ -108,11 +102,7 @@ export async function* sendQueryStream(
       Accept: 'text/event-stream',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
-    body: JSON.stringify({
-      question,
-      session_id: sessionId,
-      document_type: documentType ?? null,
-    }),
+    body: JSON.stringify({ question, session_id: sessionId }),
   })
 
   if (res.status === 401) {

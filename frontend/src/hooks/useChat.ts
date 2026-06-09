@@ -3,6 +3,7 @@ import type { Message, SourceChunk, Session } from '../types'
 import { sendQueryStream } from '../api/backend'
 
 const SESSIONS_KEY = 'hs_sessions'
+const ACTIVE_SESSION_KEY = 'hs_active_session'
 
 function loadSessions(): Session[] {
   try {
@@ -24,15 +25,38 @@ function saveSessions(sessions: Session[]) {
   }
 }
 
+function saveActiveSession(session: Session | null) {
+  try {
+    if (session) {
+      localStorage.setItem(ACTIVE_SESSION_KEY, JSON.stringify(session))
+    } else {
+      localStorage.removeItem(ACTIVE_SESSION_KEY)
+    }
+  } catch {
+    // ignore quota errors
+  }
+}
+
+function loadActiveSession(): Session | null {
+  try {
+    const raw = localStorage.getItem(ACTIVE_SESSION_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as Session
+    return { ...parsed, createdAt: new Date(parsed.createdAt) }
+  } catch {
+    return null
+  }
+}
+
 export function useChat() {
-  const [messages, setMessages] = useState<Message[]>([])
-  const [sessionId, setSessionId] = useState<string>(() => crypto.randomUUID())
+  const [messages, setMessages] = useState<Message[]>(() => loadActiveSession()?.messages ?? [])
+  const [sessionId, setSessionId] = useState<string>(() => loadActiveSession()?.id ?? crypto.randomUUID())
   const [isLoading, setIsLoading] = useState(false)
-  const [sources, setSources] = useState<SourceChunk[]>([])
+  const [sources, setSources] = useState<SourceChunk[]>(() => loadActiveSession()?.sources ?? [])
   const [error, setError] = useState<string | null>(null)
   const [sessions, setSessions] = useState<Session[]>(() => loadSessions())
 
-  const sendMessage = useCallback(async (text: string, documentType?: string) => {
+  const sendMessage = useCallback(async (text: string) => {
     if (!text.trim() || isLoading) return
 
     const userMessage: Message = { role: 'user', content: text }
@@ -46,7 +70,7 @@ export function useChat() {
     let finalSources: SourceChunk[] = []
 
     try {
-      for await (const event of sendQueryStream(text, sessionId, documentType)) {
+      for await (const event of sendQueryStream(text, sessionId)) {
         if (event.token !== undefined) {
           streamedContent += event.token
           // Show partial message with streaming cursor in real-time
@@ -85,6 +109,9 @@ export function useChat() {
         saveSessions(updated)
         return updated
       })
+
+      // Persist active session so it survives page refresh
+      saveActiveSession(upserted)
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Something went wrong'
       setError(message)
@@ -105,6 +132,7 @@ export function useChat() {
 
   const newConversation = useCallback(() => {
     // Session is already upserted in the sidebar after each response — just reset active state
+    saveActiveSession(null)
     setMessages([])
     setSources([])
     setError(null)
@@ -112,16 +140,12 @@ export function useChat() {
   }, [])
 
   const restoreSession = useCallback((session: Session) => {
-    // Remove the restored session from the list (it becomes the active conversation)
-    setSessions((prev) => {
-      const updated = prev.filter((s) => s.id !== session.id)
-      saveSessions(updated)
-      return updated
-    })
+    // Restore session as the active conversation; keep it in the sidebar history
     setMessages(session.messages)
     setSources(session.sources)
     setSessionId(session.id)
     setError(null)
+    saveActiveSession(session)
   }, [])
 
   return { messages, sessionId, isLoading, sources, error, sessions, sendMessage, newConversation, restoreSession }
