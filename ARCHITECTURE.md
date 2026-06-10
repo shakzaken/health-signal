@@ -192,9 +192,9 @@ See [docs/flow1-ingestion.md](docs/flow1-ingestion.md) for the full diagram.
 
 ## 5. Data Flow
 
-**Flow 1 — Document ingestion:** [docs/flow1-ingestion.md](docs/flow1-ingestion.md)
+**Flow 1 — Document ingestion:** [docs/flow1-ingestion.md](docs/main-flows/flow1-ingestion.md)
 
-**Flow 2 — Conversational query:** [docs/flow2-chat.md](docs/flow2-chat.md)
+**Flow 2 — Conversational query:** [docs/flow2-chat.md](docs/main-flows/flow2-chat.md)
 
 High-level three-service request path:
 
