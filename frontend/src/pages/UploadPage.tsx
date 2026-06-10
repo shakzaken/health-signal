@@ -346,7 +346,9 @@ function UploadSection() {
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                  <SparkIcon size={14} color="var(--accent)" />
+                  <div style={{ animation: 'hsspin 1s linear infinite', display: 'flex' }}>
+                    <SparkIcon size={14} color="var(--accent)" />
+                  </div>
                   <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>
                     Uploading & indexing…
                   </span>
@@ -362,10 +364,10 @@ function UploadSection() {
                   <div
                     style={{
                       height: '100%',
-                      width: '60%',
+                      width: '35%',
                       background: 'var(--accent)',
                       borderRadius: 6,
-                      animation: 'hspulse 1.3s infinite',
+                      animation: 'hsslide 1.4s ease-in-out infinite',
                     }}
                   />
                 </div>
