@@ -12,7 +12,6 @@ class Settings(BaseSettings):
     secret_key: str
     qdrant_host: str = "localhost"
     qdrant_port: int = 6333
-    anthropic_api_key: str
     openai_api_key: str
     openai_model: str = "gpt-4.1-nano"
     backend_url: str = "http://localhost:8000"

@@ -66,3 +66,12 @@ textarea, input, button, select { font-family: inherit; }
   0%, 100% { opacity: 1; }
   50% { opacity: 0; }
 }
+
+@keyframes hsspin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes hsslide {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(280%); }
+}
