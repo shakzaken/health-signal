@@ -179,7 +179,7 @@ Called by `POST /ingest`; synchronous from the backend's perspective (300 s time
 parse → classify? + chunk [parallel] → embed + extract [parallel] → write to Qdrant
 ```
 
-See [docs/flow1-ingestion.md](docs/flow1-ingestion.md) for the full diagram.
+See [docs/flow1-ingestion.md](docs/main-flows/flow1-ingestion.md) for the full diagram.
 
 | Step | Component | Notes |
 |------|-----------|-------|
