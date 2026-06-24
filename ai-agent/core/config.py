@@ -14,6 +14,8 @@ class Settings(BaseSettings):
     qdrant_port: int = 6333
     openai_api_key: str
     openai_model: str = "gpt-4.1-nano"
+    openrouter_api_key: str
+    embedding_model: str = "qwen/qwen3-embedding-8b"
     backend_url: str = "http://localhost:8000"
     ai_agent_url: str = "http://localhost:8001"
     langsmith_api_key: str = ""

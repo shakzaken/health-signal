@@ -4,7 +4,7 @@ from qdrant_client.models import Distance, VectorParams
 from core.config import settings
 
 COLLECTION_NAME = "health_documents"
-VECTOR_SIZE = 1024  # intfloat/multilingual-e5-large
+VECTOR_SIZE = 4096  # qwen/qwen3-embedding-8b
 
 
 def get_qdrant_client() -> QdrantClient:

@@ -10,7 +10,7 @@ from models.document import DocumentType, ProcessingStatus
 class DocumentUploadResponse(BaseModel):
     id: uuid.UUID
     filename: str
-    document_type: DocumentType
+    document_type: Optional[DocumentType]
     source_date: Optional[date]
     processing_status: ProcessingStatus
     uploaded_at: datetime
@@ -20,7 +20,7 @@ class DocumentResponse(BaseModel):
     id: uuid.UUID
     filename: str
     file_path: str
-    document_type: DocumentType
+    document_type: Optional[DocumentType]
     source_date: Optional[date]
     uploaded_at: datetime
     processing_status: ProcessingStatus

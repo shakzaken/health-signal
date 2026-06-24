@@ -1,27 +1,25 @@
-from fastembed import TextEmbedding
+from openai import AsyncOpenAI
 
-MODEL_NAME = "intfloat/multilingual-e5-large"
-VECTOR_SIZE = 1024
+VECTOR_SIZE = 4096  # qwen/qwen3-embedding-8b default output dimensions
 
 
 class Embedder:
     """
-    Wraps the FastEmbed model for in-process text embedding.
-    The model (~130 MB) is lazy-loaded on first use and then reused.
-    No GPU required — runs on CPU.
+    Embeds text via the OpenRouter API (Qwen3-Embedding).
+    Constructed with the API key and model name — no local model loaded.
     """
 
-    def __init__(self, model_name: str = MODEL_NAME) -> None:
-        self._model_name = model_name
-        self._model: TextEmbedding | None = None
+    def __init__(self, api_key: str, model: str) -> None:
+        self._model = model
+        self._client = AsyncOpenAI(
+            api_key=api_key,
+            base_url="https://openrouter.ai/api/v1",
+        )
 
-    def _get_model(self) -> TextEmbedding:
-        if self._model is None:
-            # mean pooling is the correct pooling strategy for multilingual-e5-large
-            self._model = TextEmbedding(model_name=self._model_name, pooling="mean")
-        return self._model
-
-    def embed(self, chunks: list[str]) -> list[list[float]]:
-        """Embed a list of text chunks. Returns a list of float vectors."""
-        model = self._get_model()
-        return [e.tolist() for e in model.embed(chunks)]
+    async def embed(self, texts: list[str]) -> list[list[float]]:
+        """Embed a list of texts. Returns a list of float vectors."""
+        response = await self._client.embeddings.create(
+            model=self._model,
+            input=texts,
+        )
+        return [item.embedding for item in response.data]

@@ -29,9 +29,11 @@ CLASSIFY_PROMPT = """You are a routing assistant for a personal health AI.
 
 Classify the user's question into one of five categories:
 
-- "lab_analysis" — the question is about specific lab test results, blood markers, their values,
+- "lab_analysis" — the question is about specific lab test results, blood markers, their numeric values,
   reference ranges, or trends for a single marker over time
   (e.g. "what is my hemoglobin?", "is my cholesterol getting worse?", "what changed in my last blood test?")
+  NOTE: questions about supplement *dosage*, *dose changes*, or *when a supplement was started/stopped*
+  are NOT lab_analysis — they belong to "timeline" or "rag"
 
 - "pattern_detection" — the question asks about correlations, causes, or patterns across different
   types of health data (labs, symptoms, supplements) over time; OR asks how a symptom or feeling
@@ -54,9 +56,10 @@ Classify the user's question into one of five categories:
   (e.g. "generate a doctor report", "prepare me for my appointment", "give me a full health summary",
   "what should I tell my doctor?")
 
-- "rag" — the question is general, about the content of uploaded documents, doctor notes, diet,
-  or anything that does not fit the above categories
-  (e.g. "what did my doctor say about my diet?", "what does my journal say about brain fog?")
+- "rag" — the question is about the content of uploaded documents, doctor notes, diet, supplement
+  dosage details, or anything that does not fit the above categories
+  (e.g. "what did my doctor say about my diet?", "what does my journal say about brain fog?",
+  "what dose of vitamin D am I taking?", "did my supplement dose change?", "why did I start fish oil?")
 
 Return only the category name, nothing else.
 """

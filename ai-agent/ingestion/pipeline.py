@@ -114,7 +114,7 @@ class IngestionPipeline:
 
             # Step 3: Embed (CPU) + Extract (LLM) — run in parallel
             vectors, extracted = await asyncio.gather(
-                asyncio.to_thread(self._embedder.embed, chunks),
+                self._embedder.embed(chunks),
                 self._extract(raw_text, document_type, config),
             )
             logger.info(f"Embedding complete — vectors={len(vectors)}")
