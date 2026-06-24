@@ -4,7 +4,7 @@ from qdrant_client.models import DatetimeRange, FieldCondition, Filter, MatchVal
 from ingestion.embedder import Embedder
 from rag.qdrant_client import COLLECTION_NAME
 
-TOP_K = 5
+TOP_K = 8
 
 
 class Retriever:
@@ -18,7 +18,7 @@ class Retriever:
         self._client = client
         self._embedder = embedder
 
-    def retrieve(
+    async def retrieve(
         self,
         query: str,
         user_id: str = "",
@@ -34,7 +34,7 @@ class Retriever:
         When provided they restrict results to chunks whose source_date falls
         within the given range — enabling time-aware retrieval.
         """
-        query_vector = self._embedder.embed([query])[0]
+        query_vector = (await self._embedder.embed([query]))[0]
 
         must_conditions = [
             FieldCondition(key="user_id", match=MatchValue(value=user_id))

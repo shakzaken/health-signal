@@ -67,8 +67,8 @@ def get_current_user_id(
 
 @lru_cache
 def get_embedder() -> Embedder:
-    """Singleton — the FastEmbed model is expensive to load."""
-    return Embedder()
+    """Singleton — one AsyncOpenAI client shared across all requests."""
+    return Embedder(api_key=settings.openrouter_api_key, model=settings.embedding_model)
 
 
 @lru_cache

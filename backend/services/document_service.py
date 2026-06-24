@@ -41,18 +41,22 @@ class DocumentService:
         content = await file.read()
         content_hash = hashlib.sha256(content).hexdigest()
 
-        # Reject duplicate uploads for the same user
+        # Reject duplicate uploads only if the existing document completed successfully.
+        # If it failed or is still pending, delete the stale record and allow re-upload.
         existing = await self.repo.find_by_hash(content_hash, user_id=user_id)
         if existing:
-            logger.warning(f"Duplicate upload rejected — hash={content_hash} existing_id={existing.id}")
-            raise HTTPException(
-                status_code=409,
-                detail={
-                    "error": "duplicate_document",
-                    "existing_document_id": str(existing.id),
-                    "message": "This file has already been uploaded.",
-                },
-            )
+            if existing.processing_status == ProcessingStatus.completed:
+                logger.warning(f"Duplicate upload rejected — hash={content_hash} existing_id={existing.id}")
+                raise HTTPException(
+                    status_code=409,
+                    detail={
+                        "error": "duplicate_document",
+                        "existing_document_id": str(existing.id),
+                        "message": "This file has already been uploaded.",
+                    },
+                )
+            logger.info(f"Replacing stale document — id={existing.id} status={existing.processing_status}")
+            await self.repo.delete(existing.id)
 
         # Save file to local filesystem
         storage_path = Path(settings.file_storage_path)

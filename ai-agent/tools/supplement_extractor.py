@@ -14,7 +14,10 @@ Extract all supplement entries from the text below. For each supplement extract:
 - stopped_at: the date the supplement was stopped in ISO format (YYYY-MM-DD), or null if still active
 - notes: any additional notes (reason for taking, side effects, brand), or null
 
-Extract every distinct supplement. If the document lists multiple supplements, create a separate entry for each.
+Extract every distinct supplement period. If a supplement had a dose change, create a SEPARATE entry for each dose period:
+- first entry: original dose, started_at = original start date, stopped_at = date of dose change
+- second entry: new dose, started_at = date of dose change, stopped_at = null (if still active)
+If the document lists multiple supplements, create a separate entry for each.
 Skip entries where you cannot extract at least a name and dosage.
 If the document is in Hebrew, translate supplement names to English.
 """

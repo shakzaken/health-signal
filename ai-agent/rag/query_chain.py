@@ -86,7 +86,7 @@ class QueryChain:
         """Build the prompt messages and retrieve chunks, WITHOUT calling the LLM.
         Returns {"messages": [...], "sources": [...], "no_context": bool} for the
         caller to either invoke or stream the LLM."""
-        primary_chunks = self._retriever.retrieve(
+        primary_chunks = await self._retriever.retrieve(
             question, user_id=user_id, document_type=document_type
         )
 
@@ -97,7 +97,7 @@ class QueryChain:
             try:
                 english_query = await self._translate_to_english(question, config=config)
                 logger.debug(f"Dual retrieval — translated query: {english_query[:80]}")
-                secondary_chunks = self._retriever.retrieve(
+                secondary_chunks = await self._retriever.retrieve(
                     english_query, user_id=user_id, document_type=document_type
                 )
                 chunks = self._merge_chunks(primary_chunks, secondary_chunks, top_k=5)

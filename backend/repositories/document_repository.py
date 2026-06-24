@@ -37,6 +37,12 @@ class DocumentRepository:
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
+    async def delete(self, document_id: uuid.UUID) -> None:
+        document = await self.get_by_id(document_id)
+        if document:
+            await self.session.delete(document)
+            await self.session.commit()
+
     async def update_status(
         self,
         document_id: uuid.UUID,
