@@ -1,0 +1,137 @@
+Central Medical Center — Laboratory Services
+Blood Test Results
+
+Date: 08/08/2024
+Patient: Daniel Bergman
+Date of Birth: 12/09/1979 (Age 44)
+Referring Physician: Dr. Sarah Rosen, Internal Medicine
+Department: General Medicine
+
+================================================
+THYROID PANEL
+================================================
+
+TSH (Thyroid Stimulating Hormone)
+Result: 3.1 mIU/L
+Reference Range: 0.4 – 4.0 mIU/L
+Status: NORMAL (improvement from 4.4 in March)
+
+Free T4 (FT4)
+Result: 0.92 ng/dL
+Reference Range: 0.8 – 1.8 ng/dL
+Status: NORMAL (improvement from 0.78 in March)
+
+Note: Significant improvement since March. TSH has returned to normal range.
+Lifestyle changes and Vitamin D supplementation appear to have contributed.
+
+================================================
+LIPID PANEL
+================================================
+
+Total Cholesterol
+Result: 198 mg/dL
+Reference Range: < 200 mg/dL
+Status: BORDERLINE NORMAL (improvement from 218 mg/dL in March)
+
+LDL (Low-Density Lipoprotein)
+Result: 136 mg/dL
+Reference Range: < 130 mg/dL
+Status: MILDLY HIGH — improved from 152, still above target
+
+HDL (High-Density Lipoprotein)
+Result: 46 mg/dL
+Reference Range: > 40 mg/dL
+Status: NORMAL (improvement from 42 in March)
+
+Triglycerides
+Result: 142 mg/dL
+Reference Range: < 150 mg/dL
+Status: NORMAL — improved significantly from 168 mg/dL
+
+================================================
+METABOLIC PANEL
+================================================
+
+Fasting Glucose
+Result: 97 mg/dL
+Reference Range: 70 – 100 mg/dL
+Status: NORMAL — excellent improvement from 103 in March
+Note: Pre-diabetic risk appears resolved with dietary intervention.
+
+ALT (Alanine Aminotransferase)
+Result: 38 U/L
+Reference Range: 7 – 40 U/L
+Status: NORMAL — improved from 48 U/L in March
+
+AST (Aspartate Aminotransferase)
+Result: 30 U/L
+Reference Range: 10 – 40 U/L
+Status: NORMAL
+
+================================================
+VITAMINS AND MINERALS
+================================================
+
+Vitamin D (25-OH Vitamin D)
+Result: 28 ng/mL
+Reference Range: 30 – 100 ng/mL
+Status: LOW — improvement from 19 ng/mL but still below normal range
+Note: Dose increase recommended. Consider increasing Vitamin D3 to 4000 IU/day.
+
+Vitamin B12
+Result: 380 pg/mL
+Reference Range: 200 – 900 pg/mL
+Status: NORMAL
+
+================================================
+COMPLETE BLOOD COUNT (CBC)
+================================================
+
+Hemoglobin
+Result: 15.1 g/dL
+Reference Range: 13.5 – 17.5 g/dL
+Status: NORMAL
+
+WBC (White Blood Cells)
+Result: 6.1 × 10³/µL
+Reference Range: 4.0 – 11.0 × 10³/µL
+Status: NORMAL
+
+Ferritin
+Result: 92 µg/L
+Reference Range: 30 – 300 µg/L
+Status: NORMAL
+
+================================================
+INFLAMMATION
+================================================
+
+CRP (C-reactive Protein)
+Result: 3.2 mg/L
+Reference Range: < 5.0 mg/L
+Status: NORMAL — improvement from 6.8 mg/L in March
+
+================================================
+SUMMARY OF FINDINGS
+================================================
+
+Overall significant improvement since March 2024.
+Remaining concerns:
+1. LDL — still elevated (136 mg/dL), continue dietary changes, recheck December
+2. Vitamin D — still low (28 ng/mL), increase dose to 4000 IU/day
+
+Resolved since March:
+- TSH and FT4 now normal
+- Fasting Glucose normalized (103 → 97)
+- Triglycerides normalized (168 → 142)
+- CRP normalized (6.8 → 3.2)
+- ALT normalized (48 → 38)
+
+Recommendations:
+- Increase Vitamin D3 to 4000 IU/day
+- Continue Mediterranean diet and exercise
+- Continue Omega-3 supplementation
+- Repeat lipid panel in December
+
+Test performed: August 8, 2024
+Signed: Dr. Amir Shapira, Laboratory Director

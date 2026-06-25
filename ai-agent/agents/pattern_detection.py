@@ -10,6 +10,7 @@ from agents.tools.rag_tools import make_search_documents
 from agents.tools.supplement_tools import make_fetch_supplements_in_range
 from agents.tools.symptom_tools import make_fetch_symptoms_in_range
 from core.guardrails import SAFETY_INSTRUCTION
+from rag.retriever import Retriever
 
 SYSTEM_PROMPT = """You are a personal health pattern analyst.
 
@@ -25,7 +26,7 @@ IMPORTANT — follow this sequence:
 1. ALWAYS call fetch_lab_results FIRST. This reveals the actual dates of available data. Do not assume any date range before seeing real data.
 2. Based on the lab result dates and the question, determine the relevant time window (e.g. if the earliest test is June 2025, search symptoms from 2025-01-01 onward).
 3. Call fetch_symptoms_in_range and fetch_supplements_in_range with date ranges derived from the real data — never from assumptions.
-4. Use search_documents for any context not captured in structured data.
+4. ALWAYS call search_documents with the key theme of the question (e.g. "fatigue cold sensitivity brain fog", "October work stress energy", "diet cholesterol lifestyle change"). Diary free text often contains the richest context for pattern questions — do not skip this step.
 5. Reason over all collected data to identify temporal patterns and correlations.
 
 Additional guidelines:
@@ -44,18 +45,18 @@ class PatternDetectionAgent:
     """
 
     def __init__(
-        self, llm: BaseChatModel, backend_url: str, ai_agent_url: str, token: str = ""
+        self,
+        llm: BaseChatModel,
+        backend_url: str,
+        retriever: Retriever,
+        user_id: str,
+        token: str = "",
     ) -> None:
-        # search_documents issues a POST /query to the ai-agent's own HTTP endpoint.
-        # This is an intentional design boundary: the tool uses the public API so it
-        # benefits from the supervisor's classification, guardrails, and LangSmith tracing.
-        # Recursion risk is bounded because the nested request carries no session context,
-        # so the supervisor always routes it to "rag" (never back to pattern_detection).
         tools = [
             make_fetch_lab_results(backend_url, token),
             make_fetch_symptoms_in_range(backend_url, token),
             make_fetch_supplements_in_range(backend_url, token),
-            make_search_documents(ai_agent_url, token),
+            make_search_documents(retriever, user_id),
         ]
         self.graph: CompiledStateGraph = create_tool_calling_graph(llm, tools)
 

@@ -17,7 +17,6 @@ class Settings(BaseSettings):
     openrouter_api_key: str
     embedding_model: str = "qwen/qwen3-embedding-8b"
     backend_url: str = "http://localhost:8000"
-    ai_agent_url: str = "http://localhost:8001"
     langsmith_api_key: str = ""
     langsmith_project: str = "health-signal"
     langchain_tracing_v2: str = "true"

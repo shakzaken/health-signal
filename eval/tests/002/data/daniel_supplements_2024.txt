@@ -1,0 +1,86 @@
+Supplement Log — Daniel Bergman — 2024
+=======================================
+
+Started after blood test results of 05/03/2024 showed borderline hypothyroid, high cholesterol,
+borderline pre-diabetic glucose, and low Vitamin D.
+
+---
+
+VITAMIN D3 (cholecalciferol)
+Brand: NOW Foods
+Dose: 3000 IU per day (initial)
+Form: softgel capsule
+Started: March 20, 2024
+Reason: Blood test showed Vitamin D at 19 ng/mL (ref 30–100). Dr. Rosen recommended supplementation.
+Note: Dose increased to 4000 IU per day on August 12, 2024. August retest showed only improvement to
+28 ng/mL on 3000 IU — still below normal range. Dr. Rosen advised increasing the dose.
+December 2024 retest: 33 ng/mL — finally in normal range on 4000 IU.
+Current status: Ongoing as of December 2024 (4000 IU/day)
+
+---
+
+OMEGA-3 FISH OIL
+Brand: Nordic Naturals Ultimate Omega
+Dose: 2000 mg per day (EPA 1300mg / DHA 900mg — split across 2 capsules)
+Form: softgel capsule
+Started: March 20, 2024
+Reason: Triglycerides at 168 mg/dL (ref <150) and elevated CRP. Dr. Rosen recommended Omega-3
+for triglyceride reduction and anti-inflammatory effect.
+Note: Triglycerides improved from 168 (March) to 142 (August) to 128 (December).
+CRP also normalized. Contribution of Omega-3 vs. diet changes is unclear.
+Current status: Ongoing as of December 2024
+
+---
+
+SELENIUM
+Brand: Thorne Research
+Dose: 100 mcg per day
+Form: capsule
+Started: April 1, 2024
+Reason: Self-initiated. Read about selenium's role in thyroid hormone conversion (T4 → T3).
+Wanted to support thyroid function alongside dietary changes given TSH was elevated.
+Not prescribed by Dr. Rosen. She was aware and had no objection.
+Note: TSH improved from 4.4 (March) to 3.1 (August) to 2.4 (December). Attribution unclear —
+dietary improvement, weight loss, Vitamin D, and selenium may all have contributed.
+Current status: Ongoing as of December 2024
+
+---
+
+MAGNESIUM GLYCINATE
+Brand: Now Foods
+Dose: 300 mg per day
+Form: capsule
+Started: April 15, 2024
+Reason: Self-initiated. Read about magnesium and sleep quality, muscle function, and constipation.
+All three were concerns at the time.
+Timing: Taken 30 minutes before bed.
+Note: Constipation resolved by June–July 2024. Sleep quality improved. Hard to attribute to
+magnesium specifically given multiple simultaneous changes.
+Current status: Ongoing as of December 2024
+
+---
+
+COQ10 (Ubiquinone)
+Brand: Jarrow Formulas
+Dose: 200 mg per day
+Form: softgel capsule
+Started: May 5, 2024
+Reason: Self-initiated. Read about CoQ10 and cardiovascular health, mitochondrial energy
+production. Relevant given high cholesterol and persistent fatigue at time of starting.
+Note: No obvious side effects. Energy improvement observed over May–July but timeline overlaps
+with many other changes (diet, exercise, Vitamin D, magnesium). Cannot isolate CoQ10's contribution.
+Current status: Ongoing as of December 2024
+
+---
+
+SUMMARY TABLE
+=============
+Supplement          | Start Date    | End Date      | Dose               | Status
+--------------------|---------------|---------------|--------------------|----------
+Vitamin D3          | Mar 20, 2024  | Ongoing       | 4000 IU/day*       | Active
+Omega-3 Fish Oil    | Mar 20, 2024  | Ongoing       | 2000 mg/day        | Active
+Selenium            | Apr 1, 2024   | Ongoing       | 100 mcg/day        | Active
+Magnesium Glycinate | Apr 15, 2024  | Ongoing       | 300 mg/day         | Active
+CoQ10               | May 5, 2024   | Ongoing       | 200 mg/day         | Active
+
+*Vitamin D3 increased from 3000 IU to 4000 IU on August 12, 2024.

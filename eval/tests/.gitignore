@@ -1,0 +1,3 @@
+# Keep golden Q&A files, ignore generated outputs
+results.json
+report.md

@@ -51,7 +51,7 @@ health-signal/
 │
 ├── tests/e2e/         # Integration tests against live services
 ├── docs/              # Flow diagrams (Mermaid .md and PPTX)
-└── demo/              # Seed data + seed script for demo environment
+└── eval/              # Eval framework: versioned test suites, seed script, reports
 ```
 
 ---

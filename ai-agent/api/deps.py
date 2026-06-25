@@ -101,15 +101,13 @@ def get_ingestion_pipeline() -> IngestionPipeline:
 def get_supervisor(token: str = Depends(get_token)) -> Supervisor:
     llm = get_llm()
     client = get_qdrant_client()
-    rag_chain = QueryChain(
-        retriever=Retriever(client=client, embedder=get_embedder()),
-        llm=llm,
-    )
+    retriever = Retriever(client=client, embedder=get_embedder())
+    rag_chain = QueryChain(retriever=retriever, llm=llm)
     return Supervisor(
         llm=llm,
         rag_chain=rag_chain,
+        retriever=retriever,
         backend_url=settings.backend_url,
-        ai_agent_url=settings.ai_agent_url,
         token=token,
     )
 

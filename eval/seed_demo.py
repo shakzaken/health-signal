@@ -6,8 +6,8 @@ Creates a demo user (Maya Cohen) and uploads all 7 synthetic health documents.
 Safe to run multiple times — duplicate files are skipped gracefully.
 
 Usage:
-    python demo/seed_demo.py
-    python demo/seed_demo.py --backend http://localhost:8000
+    python eval/seed_demo.py
+    python eval/seed_demo.py --backend http://localhost:8000
 """
 
 import argparse
@@ -32,7 +32,7 @@ DOCUMENTS = [
     ("demo_lifestyle_2024.txt",     "journal",         "2024-04-08"),
 ]
 
-DATA_DIR = Path(__file__).parent / "data"
+DATA_DIR = Path(__file__).parent / "tests" / "001" / "data"
 
 
 def get_token(backend: str) -> str:

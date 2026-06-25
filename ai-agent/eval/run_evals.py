@@ -7,7 +7,7 @@ and prints a summary table with pass/warn/fail per case.
 Prerequisites:
   - Backend running on :8000
   - AI agent running on :8001
-  - Demo data seeded (run demo/seed_demo.py first)
+  - Demo data seeded (run eval/seed_demo.py first)
   - ANTHROPIC_API_KEY in environment (for the judge LLM)
 
 Usage:
@@ -25,7 +25,7 @@ import httpx
 from langchain_openai import ChatOpenAI
 
 from core.config import settings
-from eval.dataset import EVAL_CASES, EvalCase
+from eval.dataset import EVAL_CASES, EvalCase, load_cases_from_json
 from eval.judge import JudgeScore, score_answer
 
 # Pass thresholds
@@ -114,6 +114,32 @@ def print_summary(results: list[EvalResult]) -> None:
     print("=" * 64)
 
 
+def save_results(results: list[EvalResult], path: str) -> None:
+    import json
+    from pathlib import Path
+    data = [
+        {
+            "case": {
+                "id": r.case.id,
+                "category": r.case.category,
+                "question": r.case.question,
+                "notes": r.case.notes,
+            },
+            "answer": r.answer,
+            "score": {
+                "relevance": r.score.relevance,
+                "safety": r.score.safety,
+                "completeness": r.score.completeness,
+                "reasoning": r.score.reasoning,
+            },
+            "status": r.status,
+        }
+        for r in results
+    ]
+    Path(path).write_text(json.dumps(data, indent=2, ensure_ascii=False))
+    print(f"\nResults saved to {path}")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run HealthSignal eval suite")
     parser.add_argument("--token", required=True, help="JWT token for the demo user")
@@ -122,9 +148,11 @@ def main() -> None:
         "--category", default=None,
         help="Run only this category: lab | pattern | timeline | safety",
     )
+    parser.add_argument("--output", default=None, help="Save results as JSON to this path (for report generation)")
+    parser.add_argument("--dataset", default=None, help="Path to a dataset JSON file (overrides built-in cases)")
     args = parser.parse_args()
 
-    cases = EVAL_CASES
+    cases = load_cases_from_json(args.dataset) if args.dataset else EVAL_CASES
     if args.category:
         cases = [c for c in cases if c.category == args.category]
         if not cases:
@@ -143,6 +171,9 @@ def main() -> None:
     results: list[EvalResult] = []
 
     for i, case in enumerate(cases, 1):
+        if i > 1:
+            import time
+            time.sleep(2)  # avoid OpenAI TPM rate limits between questions
         session_id = str(uuid.uuid4())
         print(f"[{i}/{len(cases)}] Querying: {case.question[:60]}...", end="", flush=True)
 
@@ -174,6 +205,9 @@ def main() -> None:
         print_result(result, i, len(cases))
 
     print_summary(results)
+
+    if args.output:
+        save_results(results, args.output)
 
     # Exit with error code if any blocking failures
     failed = [r for r in results if r.status == "FAIL"]

@@ -1,0 +1,139 @@
+Central Medical Center — Laboratory Services
+Blood Test Results
+
+Date: 05/03/2024
+Patient: Daniel Bergman
+Date of Birth: 12/09/1979 (Age 44)
+Referring Physician: Dr. Sarah Rosen, Internal Medicine
+Department: General Medicine
+
+================================================
+THYROID PANEL
+================================================
+
+TSH (Thyroid Stimulating Hormone)
+Result: 4.4 mIU/L
+Reference Range: 0.4 – 4.0 mIU/L
+Status: HIGH — above upper limit of normal
+
+Free T4 (FT4)
+Result: 0.78 ng/dL
+Reference Range: 0.8 – 1.8 ng/dL
+Status: LOW-BORDERLINE — just below normal range
+
+Note: TSH elevation with borderline-low FT4 is consistent with subclinical to mild hypothyroidism.
+Recommend lifestyle intervention and retest in 5 months.
+
+================================================
+LIPID PANEL
+================================================
+
+Total Cholesterol
+Result: 218 mg/dL
+Reference Range: < 200 mg/dL
+Status: HIGH
+
+LDL (Low-Density Lipoprotein)
+Result: 152 mg/dL
+Reference Range: < 130 mg/dL
+Status: HIGH
+
+HDL (High-Density Lipoprotein)
+Result: 42 mg/dL
+Reference Range: > 40 mg/dL
+Status: BORDERLINE LOW
+
+Triglycerides
+Result: 168 mg/dL
+Reference Range: < 150 mg/dL
+Status: HIGH
+
+================================================
+METABOLIC PANEL
+================================================
+
+Fasting Glucose
+Result: 103 mg/dL
+Reference Range: 70 – 100 mg/dL
+Status: HIGH — borderline pre-diabetic range (100–125 = pre-diabetes)
+
+ALT (Alanine Aminotransferase)
+Result: 48 U/L
+Reference Range: 7 – 40 U/L
+Status: HIGH — mildly elevated
+
+AST (Aspartate Aminotransferase)
+Result: 36 U/L
+Reference Range: 10 – 40 U/L
+Status: NORMAL
+
+================================================
+VITAMINS AND MINERALS
+================================================
+
+Vitamin D (25-OH Vitamin D)
+Result: 19 ng/mL
+Reference Range: 30 – 100 ng/mL
+Status: LOW — Vitamin D deficiency
+
+Vitamin B12
+Result: 340 pg/mL
+Reference Range: 200 – 900 pg/mL
+Status: NORMAL
+
+================================================
+COMPLETE BLOOD COUNT (CBC)
+================================================
+
+Hemoglobin
+Result: 14.8 g/dL
+Reference Range: 13.5 – 17.5 g/dL
+Status: NORMAL
+
+WBC (White Blood Cells)
+Result: 6.4 × 10³/µL
+Reference Range: 4.0 – 11.0 × 10³/µL
+Status: NORMAL
+
+Platelets
+Result: 228 × 10³/µL
+Reference Range: 150 – 400 × 10³/µL
+Status: NORMAL
+
+Ferritin
+Result: 88 µg/L
+Reference Range: 30 – 300 µg/L
+Status: NORMAL
+
+================================================
+INFLAMMATION
+================================================
+
+CRP (C-reactive Protein)
+Result: 6.8 mg/L
+Reference Range: < 5.0 mg/L
+Status: HIGH — elevated inflammatory marker
+
+================================================
+SUMMARY OF FINDINGS
+================================================
+
+Abnormal findings requiring follow-up:
+1. TSH HIGH (4.4 mIU/L) + FT4 LOW-BORDERLINE (0.78 ng/dL) — subclinical/mild hypothyroidism pattern
+2. LDL HIGH (152 mg/dL) — cardiovascular risk factor
+3. Total Cholesterol HIGH (218 mg/dL)
+4. Triglycerides HIGH (168 mg/dL)
+5. Fasting Glucose HIGH (103 mg/dL) — borderline pre-diabetic, lifestyle intervention recommended
+6. ALT HIGH (48 U/L) — mild liver enzyme elevation, monitor
+7. Vitamin D LOW (19 ng/mL) — supplementation recommended
+8. CRP HIGH (6.8 mg/L) — low-grade inflammation
+
+Recommendations:
+- Mediterranean diet, reduce refined carbohydrates and saturated fats
+- Regular aerobic exercise
+- Vitamin D supplementation
+- Omega-3 supplementation (for triglycerides and inflammation)
+- Repeat full panel in 5 months
+
+Test performed: March 5, 2024
+Signed: Dr. Amir Shapira, Laboratory Director
