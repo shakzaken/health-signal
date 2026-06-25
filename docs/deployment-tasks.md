@@ -1,6 +1,6 @@
 # Deployment Tasks — Health Signal
 
-## Status: Phase 3 in progress
+## Status: Phase 8 in progress (eval fixes), Phase 3–7 pending
 
 ---
 
@@ -117,11 +117,15 @@ One-time manual setup on the Hetzner server.
 ### Task 5.2 — Clone repo and configure
 
 - [ ] Clone repo: `git clone <repo-url> /opt/health-signal`
-- [ ] Create `/opt/health-signal/.env.backend` with production values
-- [ ] Create `/opt/health-signal/.env.ai-agent` with production values
+- [ ] Create `/opt/health-signal/backend/.env` with production values
+- [ ] Create `/opt/health-signal/ai-agent/.env` with production values
 - [ ] Save both `.env` files in password manager as backup
 - [ ] Create `/opt/health-signal/nginx/certs/` directory
 - [ ] Upload `origin.pem` and `origin.key` to `/opt/health-signal/nginx/certs/`
+
+### Task 5.2.1 — Verify no override file on server
+
+- [ ] Confirm `docker-compose.override.yml` does NOT exist on the server — it is gitignored and must not be created. Its absence ensures internal services (qdrant, backend, ai-agent) are not exposed to the internet.
 
 ### Task 5.3 — First deploy
 
@@ -178,76 +182,81 @@ Automate future deploys via GitHub Actions.
 
 ---
 
-## Phase 8 — Answer Quality (Post-launch)
+## Phase 8 — Answer Quality (Eval)
 
-Systematically measure and improve the accuracy of agent answers using an eval dataset.
+Systematically measure and improve the accuracy of agent answers.
 
-### Task 8.1 — Build eval dataset
+### Task 8.1 — Eval framework ✅
 
-Create a golden dataset of questions with expected answers, covering all agent routes.
-Store in `eval/dataset.json` (or extend the existing eval dataset if one exists).
+- [x] LLM-as-judge eval framework with versioned test directories (`eval/tests/NNN/`)
+- [x] Per-test data directories (`eval/tests/NNN/data/`) and per-test eval users (`eval-NNN@healthsignal.dev`)
+- [x] `eval/setup_and_run.py` — registers/logs in as per-test user, uploads data, runs eval, generates report
+- [x] `ai-agent/eval/run_evals.py` — `--dataset` flag to load per-test `dataset.json`
+- [x] `eval/generate_report.py` — markdown report with scores, root cause analysis, recommendations
 
-- [ ] Write ~5 questions per route: `lab_analysis`, `pattern_detection`, `timeline`, `rag`
-- [ ] For each question record:
-  - `question` — exact text to send
-  - `expected_answer` — the correct factual answer (numbers, dates, names)
-  - `route` — which agent should handle it
-  - `key_facts` — list of specific facts the answer must contain (e.g. `["11 µg/L", "February 2024"]`)
-- [ ] Use the demo data files as the source of truth for expected answers
-- [ ] Include edge cases: questions with specific dates, dose changes, cross-document reasoning
+### Task 8.2 — Test 001 (Maya's data) ✅
 
-### Task 8.2 — Run eval and record baseline
+- [x] Created `eval/tests/001/data/` — Maya's demo health documents
+- [x] Created `eval/tests/001/dataset.json` — 20 eval cases
+- [x] Baseline: **18/20 PASS** → iterated → **20/20 PASS**
+- [x] Fixed `lab_01`: `fetch_lab_results` now sorted chronologically + ABNORMAL HISTORY SUMMARY section
+- [x] Fixed `timeline_01`: added month-by-month chronological narrative instruction
 
-- [ ] Upload all demo data files to the app (fresh session)
-- [ ] Send each question from the dataset and record the actual answer
-- [ ] For each question mark: Pass / Fail / Partial (based on whether key_facts are present)
-- [ ] Record the route the supervisor chose (check logs) — flag misroutes
-- [ ] Calculate baseline score: `passed / total`
+### Task 8.3 — Test 002 (Daniel's data) — in progress
 
-### Task 8.3 — Fix and iterate
+- [x] Created `eval/tests/002/data/` — Daniel's health documents (6 files: labs × 3, symptoms × 2, supplements × 1)
+- [x] Created `eval/tests/002/dataset.json` — 21 eval cases covering lab, pattern, timeline, rag, safety
+- [x] Current result: **16/21 PASS, 5 WARN, 0 FAIL**
 
-For each failing question, diagnose the root cause and fix it:
+**Completed fixes:**
+- [x] Architectural fix: `search_documents` tool now uses `Retriever` directly instead of HTTP self-call to avoid recursive supervisor routing
+- [x] Added `search_documents` to `TimelineAgent` — diary content was unreachable for subjective milestone questions
+- [x] `TimelineAgent` and `PatternDetectionAgent` now constructed per-request (user_id is required at construction time for search_documents)
+- [x] Removed temporary `/rag/search` endpoint (was intermediate fix, now obsolete)
+- [x] Fixed `dataset.json` expected keywords for `rag_01` and `rag_03` to match actual document content
+- [x] Added `scripts/qdrant_cleanup.py` (gitignored) — maintenance tool to delete orphaned Qdrant chunks by document_id, user_id, or email
 
-| Root cause | Fix |
-|---|---|
-| Wrong route (e.g. supplement dose → lab_analysis) | Update `CLASSIFY_PROMPT` in `supervisor.py` with better examples |
-| Correct route, wrong data from DB | Check DB contents, fix ingestion extractor prompt |
-| Correct data, LLM picks wrong value | Add precision instruction to the agent's system prompt |
-| Missing context (answer spans multiple docs) | Increase `TOP_K` in retriever or improve chunking |
-| Hallucination with no data | Check if data was ingested; improve "no data" guardrails |
+**Remaining 5 WARNs — all routing issues (supervisor CLASSIFY_PROMPT):**
 
-- [ ] Fix one issue at a time, re-run the affected questions, verify improvement
-- [ ] Re-run full eval after each batch of fixes — track score over iterations
-- [ ] Target: ≥ 80% Pass on the golden dataset before considering quality stable
+| Case | Question | Actual route | Expected route |
+|------|----------|-------------|----------------|
+| pattern_03 | "What happened during intense work in October?" | lab_analysis | pattern_detection |
+| pattern_04 | "What health changes around the lifestyle changes?" | lab_analysis | pattern_detection |
+| timeline_01 | "Give me a chronological summary of my health in 2024" | lab_analysis | timeline |
+| timeline_04 | "When did Daniel's energy levels start improving?" | lab_analysis | timeline |
+| rag_01 | "Why did Daniel start taking selenium?" | lab_analysis | rag |
 
-### Task 8.4 — Automate eval (optional)
+- [ ] Fix `CLASSIFY_PROMPT` in `supervisor.py` to correctly route the 5 failing cases
+- [ ] Re-run test 002 and verify improvement
+- [ ] Re-run test 001 to confirm no regressions
 
-- [ ] Write a script `eval/run_eval.py` that sends each question via the API and checks key_facts automatically
-- [ ] Add to CI or run manually before each major change to catch regressions
+### Task 8.4 — Test 003+ (future)
+
+- [ ] Create additional test datasets with different user profiles and edge cases
+- [ ] Target: ≥ 90% pass rate across all test suites before considering quality stable
 
 ---
 
-## Phase 9 — Monitoring (Future)
+## Phase 9 — Monitoring (Post-launch)
 
 Not a blocker for launch. Add after the app is live.
 
-- [ ] Decide on monitoring tool (Uptime Robot free tier for uptime alerts, or self-hosted)
-- [ ] Set up uptime monitoring for `healthsignal.yakirzaken.com`
-- [ ] Set up basic alerting (email on downtime)
+- [ ] Set up uptime monitoring for `healthsignal.yakirzaken.com` (Uptime Robot free tier)
+- [ ] Set up email alerting on downtime
 - [ ] Consider adding `pg_dump` cron job for point-in-time PostgreSQL recovery
 
 ---
 
 ## Summary
 
-| Phase | Description | Effort |
+| Phase | Description | Status |
 |-------|-------------|--------|
-| 1 | Code changes (embedder + build) | Medium |
-| 2 | Dockerize all services | Medium |
-| 3 | Provision Hetzner with Terraform | Small |
-| 4 | Domain, DNS, TLS | Small |
-| 5 | Server setup + first deploy | Small |
-| 6 | GitHub Actions CI/CD | Small |
-| 7 | Smoke test + launch | Small |
-| 8 | Answer quality — eval & fix loop | Medium |
-| 9 | Monitoring | Future |
+| 1 | Code changes (embedder + build) | ✅ Done |
+| 2 | Dockerize all services | ✅ Done |
+| 3 | Provision Hetzner with Terraform | 🔲 Pending |
+| 4 | Domain, DNS, TLS | 🔲 Pending |
+| 5 | Server setup + first deploy | 🔲 Pending |
+| 6 | GitHub Actions CI/CD | 🔲 Pending |
+| 7 | Smoke test + launch | 🔲 Pending |
+| 8 | Answer quality — eval & fix loop | 🔄 In progress (16/21 on test 002) |
+| 9 | Monitoring | 🔲 Post-launch |

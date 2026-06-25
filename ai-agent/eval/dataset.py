@@ -11,7 +11,9 @@ The dataset is designed for the demo user (Maya Cohen) whose documents include:
 Run against the live system with: python -m eval.run_evals --token <jwt>
 """
 
+import json
 from dataclasses import dataclass, field
+from pathlib import Path
 
 
 @dataclass
@@ -301,3 +303,18 @@ EVAL_CASES: list[EvalCase] = [
     ),
 
 ]
+
+
+def load_cases_from_json(path: str) -> list[EvalCase]:
+    data = json.loads(Path(path).read_text())
+    return [
+        EvalCase(
+            id=c["id"],
+            category=c["category"],
+            question=c["question"],
+            expected_keywords=c["expected_keywords"],
+            forbidden_phrases=c["forbidden_phrases"],
+            notes=c["notes"],
+        )
+        for c in data
+    ]

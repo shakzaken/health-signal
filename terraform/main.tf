@@ -47,9 +47,9 @@ resource "hcloud_firewall" "default" {
 # CAX21 — ARM, 4 vCPU, 8 GB RAM, 80 GB SSD, Falkenstein (Germany)
 resource "hcloud_server" "main" {
   name        = "health-signal"
-  server_type = "cax21"
+  server_type = "cpx31"
   image       = "ubuntu-24.04"
-  location    = "fsn1"
+  location    = "nbg1"
   ssh_keys    = [hcloud_ssh_key.default.id]
   firewall_ids = [hcloud_firewall.default.id]
 
@@ -72,7 +72,7 @@ resource "hcloud_server" "main" {
 # Floating IP — static IP address for DNS
 resource "hcloud_floating_ip" "main" {
   type      = "ipv4"
-  location  = "fsn1"
+  home_location = "nbg1"
   name      = "health-signal"
 }
 

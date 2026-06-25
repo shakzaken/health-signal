@@ -19,8 +19,10 @@ def make_fetch_lab_results(backend_url: str, token: str):
         if not results:
             return "No lab results found."
 
+        # Build per-test detail lines (oldest first so history reads chronologically)
+        sorted_results = sorted(results, key=lambda r: r.get("test_date") or "")
         lines = []
-        for result in results:
+        for result in sorted_results:
             lines.append(f"\nTest date: {result.get('test_date', 'unknown')}")
             if result.get("lab_name"):
                 lines.append(f"Lab: {result['lab_name']}")
@@ -30,6 +32,26 @@ def make_fetch_lab_results(backend_url: str, token: str):
                     ref = f" (normal: {marker['reference_low']}–{marker['reference_high']})"
                 status = f" [{marker['status']}]" if marker.get("status") else ""
                 lines.append(f"  • {marker['name']}: {marker['value']} {marker['unit']}{ref}{status}")
+
+        # Explicit summary of any marker that was ever outside normal range
+        abnormal_statuses = {"high", "low", "borderline_low", "borderline_high", "critical"}
+        ever_abnormal: dict[str, list[str]] = {}
+        for result in sorted_results:
+            date = result.get("test_date", "?")
+            for marker in result.get("markers", []):
+                if (marker.get("status") or "").lower() in abnormal_statuses:
+                    name = marker["name"]
+                    ever_abnormal.setdefault(name, []).append(
+                        f"{date}: {marker['value']} {marker['unit']} [{marker['status']}]"
+                    )
+
+        if ever_abnormal:
+            lines.append("\n\n=== MARKERS WITH ANY ABNORMAL READING (across all test dates) ===")
+            for name, entries in ever_abnormal.items():
+                lines.append(f"  {name}:")
+                for entry in entries:
+                    lines.append(f"    - {entry}")
+
         return "\n".join(lines)
 
     return fetch_lab_results

@@ -75,3 +75,13 @@ backend/alembic/versions/__pycache__/
 # Slides (presentations and generators)
 docs/slides/
 assets/social/health-signal-linkedin.png
+
+# Local Docker overrides (dev port bindings — not for production)
+docker-compose.override.yml
+
+# Local maintenance scripts (not for version control)
+scripts/
+
+# Eval generated outputs (results and reports are produced per run, not committed)
+eval/tests/*/results.json
+eval/tests/*/report.md

@@ -19,6 +19,10 @@ Guidelines:
 - When the user asks about a specific date or time period, find the test result whose test_date matches
   that period exactly — do NOT return the most recent value when a specific date was asked for
 - Identify trends: is a marker going up, down, or stable over time?
+- When asked which markers were abnormal, call fetch_lab_results to get ALL test dates, then for
+  each marker check every historical value — list any marker that was outside the reference range
+  at ANY point, including the abnormal value and the date it occurred. Do not limit yourself to
+  the most recent test. Do not include markers whose values were always within normal limits.
 - Flag values outside the reference range and explain what that means in plain language
 - Compare the most recent result to previous ones when multiple tests are available
 - Always present findings as observations, not diagnoses

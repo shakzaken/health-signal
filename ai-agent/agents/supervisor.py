@@ -17,6 +17,7 @@ from agents.pattern_detection import PatternDetectionAgent
 from agents.timeline import TimelineAgent
 from core.logger import get_logger
 from rag.query_chain import NO_RELEVANT_DOCUMENTS_MESSAGE, QueryChain
+from rag.retriever import Retriever
 
 logger = get_logger(__name__)
 
@@ -37,11 +38,14 @@ Classify the user's question into one of five categories:
 
 - "pattern_detection" — the question asks about correlations, causes, or patterns across different
   types of health data (labs, symptoms, supplements) over time; OR asks how a symptom or feeling
-  changed over time (since this requires cross-referencing symptom diary with labs)
+  changed over time; OR asks about the impact of a lifestyle event (work stress, exercise, diet)
+  on health symptoms or energy
   (e.g. "why was I so tired in January?", "did my fatigue correlate with low Vitamin D?",
   "what patterns do you see in my health data?", "did anything change after I started the supplement?",
   "did my morning stiffness change over time?", "how did my energy levels change?",
-  "did my symptoms improve after starting supplements?", "was there a relationship between X and Y?")
+  "did my symptoms improve after starting supplements?", "was there a relationship between X and Y?",
+  "what happened to my health during a stressful period?", "did work stress affect my symptoms?",
+  "what changed when I started exercising / changed my diet?")
 
 - "timeline" — the question asks for a summary or chronological overview of health events
   over a period of time, OR asks when something started/stopped/happened, OR asks about
@@ -101,8 +105,8 @@ class Supervisor:
         self,
         llm: BaseChatModel,
         rag_chain: QueryChain,
+        retriever: Retriever,
         backend_url: str,
-        ai_agent_url: str = "http://localhost:8001",
         token: str = "",
     ) -> None:
         if not token:
@@ -111,14 +115,11 @@ class Supervisor:
             )
         self._llm = llm
         self._rag_chain = rag_chain
+        self._retriever = retriever
         self._backend_url = backend_url
         self._token = token
         self._memory = ConversationMemory(backend_url=backend_url, token=token)
         self._lab_agent = LabAnalysisAgent(llm=llm, backend_url=backend_url, token=token)
-        self._pattern_agent = PatternDetectionAgent(
-            llm=llm, backend_url=backend_url, ai_agent_url=ai_agent_url, token=token
-        )
-        self._timeline_agent = TimelineAgent(llm=llm, backend_url=backend_url, token=token)
         self._doctor_agent = DoctorReportAgent(llm=llm, backend_url=backend_url, token=token)
         self._graph = self._build_graph()
         # Keep strong references to background tasks so CPython doesn't GC them
@@ -178,10 +179,24 @@ class Supervisor:
         return await self._run_sub_agent(state, config, self._lab_agent, "lab_analysis_agent")
 
     async def _run_pattern_detection(self, state: AgentState, config: RunnableConfig) -> AgentState:
-        return await self._run_sub_agent(state, config, self._pattern_agent, "pattern_detection_agent")
+        pattern_agent = PatternDetectionAgent(
+            llm=self._llm,
+            backend_url=self._backend_url,
+            retriever=self._retriever,
+            user_id=state["user_id"],
+            token=self._token,
+        )
+        return await self._run_sub_agent(state, config, pattern_agent, "pattern_detection_agent")
 
     async def _run_timeline(self, state: AgentState, config: RunnableConfig) -> AgentState:
-        return await self._run_sub_agent(state, config, self._timeline_agent, "timeline_agent")
+        timeline_agent = TimelineAgent(
+            llm=self._llm,
+            backend_url=self._backend_url,
+            retriever=self._retriever,
+            user_id=state["user_id"],
+            token=self._token,
+        )
+        return await self._run_sub_agent(state, config, timeline_agent, "timeline_agent")
 
     async def _run_doctor_report(self, state: AgentState, config: RunnableConfig) -> AgentState:
         # Build conversation context string from summary + recent history
@@ -418,10 +433,24 @@ class Supervisor:
 
         else:
             # lab_analysis | pattern_detection | timeline
+            pattern_agent = PatternDetectionAgent(
+                llm=self._llm,
+                backend_url=self._backend_url,
+                retriever=self._retriever,
+                user_id=user_id,
+                token=self._token,
+            )
+            timeline_agent = TimelineAgent(
+                llm=self._llm,
+                backend_url=self._backend_url,
+                retriever=self._retriever,
+                user_id=user_id,
+                token=self._token,
+            )
             agent_map = {
                 "lab_analysis": self._lab_agent,
-                "pattern_detection": self._pattern_agent,
-                "timeline": self._timeline_agent,
+                "pattern_detection": pattern_agent,
+                "timeline": timeline_agent,
             }
             agent_run_names = {
                 "lab_analysis": "lab_analysis_agent",
