@@ -15,6 +15,7 @@ from models.supplement import SupplementEntry
 from models.symptom import SymptomEntry, SymptomSeverity
 from models.timeline import EventType
 from repositories.document_repository import DocumentRepository
+from repositories.ingestion_cleanup_repository import IngestionCleanupRepository
 from repositories.lab_result_repository import LabResultRepository
 from repositories.supplement_repository import SupplementRepository
 from repositories.symptom_repository import SymptomRepository
@@ -26,6 +27,7 @@ logger = get_logger(__name__)
 class DocumentService:
     def __init__(self, session: AsyncSession) -> None:
         self.repo = DocumentRepository(session)
+        self.ingestion_cleanup = IngestionCleanupRepository(session)
         self.lab_repo = LabResultRepository(session)
         self.symptom_repo = SymptomRepository(session)
         self.supplement_repo = SupplementRepository(session)
@@ -56,7 +58,7 @@ class DocumentService:
                     },
                 )
             logger.info(f"Replacing stale document — id={existing.id} status={existing.processing_status}")
-            await self.repo.delete(existing.id)
+            await self.ingestion_cleanup.cleanup_failed(existing.id)
 
         # Save file to local filesystem
         storage_path = Path(settings.file_storage_path)

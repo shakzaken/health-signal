@@ -2,7 +2,7 @@ import uuid
 from datetime import date
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, Form, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.deps import get_current_user
@@ -67,18 +67,6 @@ async def list_documents(
         for d in documents
     ]
 
-
-@router.delete("/{document_id}", status_code=204)
-async def delete_document(
-    document_id: uuid.UUID,
-    session: AsyncSession = Depends(get_session),
-    current_user: User = Depends(get_current_user),
-):
-    repo = DocumentRepository(session)
-    document = await repo.get_by_id(document_id)
-    if not document or document.user_id != str(current_user.id):
-        raise HTTPException(status_code=404, detail="Document not found")
-    await repo.delete(document_id)
 
 
 @router.get("/{document_id}", response_model=DocumentResponse)

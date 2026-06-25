@@ -1,13 +1,10 @@
 import uuid
 from typing import Optional
 
-from sqlalchemy import delete as sa_delete, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models.document import Document, DocumentType, ProcessingStatus
-from models.lab_result import LabMarker, LabResult
-from models.supplement import SupplementEntry
-from models.symptom import SymptomEntry
 
 
 class DocumentRepository:
@@ -39,32 +36,6 @@ class DocumentRepository:
             stmt = stmt.where(Document.user_id == user_id)
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
-
-    async def delete(self, document_id: uuid.UUID) -> None:
-        document = await self.get_by_id(document_id)
-        if not document:
-            return
-        # Delete child rows manually (FKs have no ON DELETE CASCADE)
-        lab_result_ids = (
-            await self.session.execute(
-                select(LabResult.id).where(LabResult.document_id == document_id)
-            )
-        ).scalars().all()
-        if lab_result_ids:
-            await self.session.execute(
-                sa_delete(LabMarker).where(LabMarker.lab_result_id.in_(lab_result_ids))
-            )
-        await self.session.execute(
-            sa_delete(LabResult).where(LabResult.document_id == document_id)
-        )
-        await self.session.execute(
-            sa_delete(SymptomEntry).where(SymptomEntry.document_id == document_id)
-        )
-        await self.session.execute(
-            sa_delete(SupplementEntry).where(SupplementEntry.document_id == document_id)
-        )
-        await self.session.delete(document)
-        await self.session.commit()
 
     async def update_status(
         self,

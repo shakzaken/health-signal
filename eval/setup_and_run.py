@@ -23,6 +23,7 @@ Options:
 
 import argparse
 import shutil
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -111,6 +112,13 @@ def register_or_login(backend: str, email: str) -> str:
 # ── Document management ───────────────────────────────────────────────────────
 
 def delete_existing_documents(backend: str, token: str) -> None:
+    """
+    Clear all documents for the eval user before each run.
+
+    Documents cannot be deleted via the public API (users do not have delete access).
+    This function uses direct database access via docker compose — it is a local
+    maintenance operation and must never run against production.
+    """
     headers = {"Authorization": f"Bearer {token}"}
     with httpx.Client(base_url=backend, timeout=30.0) as client:
         resp = client.get("/documents", headers=headers)
@@ -119,9 +127,27 @@ def delete_existing_documents(backend: str, token: str) -> None:
         if not docs:
             print("  No existing documents.")
             return
-        print(f"  Deleting {len(docs)} existing document(s)...")
-        for doc in docs:
-            client.delete(f"/documents/{doc['id']}", headers=headers)
+
+    print(f"  Deleting {len(docs)} existing document(s) via database...")
+    doc_ids = [doc["id"] for doc in docs]
+    ids_list = "', '".join(doc_ids)
+
+    # Delete child rows, then documents — same order as IngestionCleanupRepository
+    sql_commands = [
+        f"DELETE FROM lab_markers WHERE lab_result_id IN (SELECT id FROM lab_results WHERE document_id IN ('{ids_list}'))",
+        f"DELETE FROM lab_results WHERE document_id IN ('{ids_list}')",
+        f"DELETE FROM symptom_entries WHERE document_id IN ('{ids_list}')",
+        f"DELETE FROM supplement_entries WHERE document_id IN ('{ids_list}')",
+        f"DELETE FROM timeline_events WHERE reference_id IN (SELECT id FROM lab_results WHERE document_id IN ('{ids_list}'))",
+        f"DELETE FROM documents WHERE id IN ('{ids_list}')",
+    ]
+    for sql in sql_commands:
+        subprocess.run(
+            ["docker", "compose", "exec", "-T", "postgres",
+             "psql", "-U", "yakir", "-d", "healthsignal", "-c", sql],
+            cwd=EVAL_DIR.parent,
+            capture_output=True,
+        )
 
 
 def upload_demo_files(backend: str, token: str, demo_data_dir: Path) -> list[str]:
