@@ -16,8 +16,6 @@ services:
 
   qdrant:
     image: qdrant/qdrant
-    ports:
-      - "6333:6333"
     volumes:
       - qdrant_data:/qdrant/storage
 
@@ -39,8 +37,6 @@ services:
       DATABASE_URL: postgresql+asyncpg://yakir@postgres:5432/healthsignal
       AI_AGENT_URL: http://ai-agent:8001
       FILE_STORAGE_PATH: /app/uploads
-    ports:
-      - "8000:8000"
     volumes:
       - uploads:/app/uploads
     depends_on:
@@ -57,8 +53,6 @@ services:
       DATABASE_URL: postgresql+asyncpg://yakir@postgres:5432/healthsignal
       BACKEND_URL: http://backend:8000
       QDRANT_HOST: qdrant
-    ports:
-      - "8001:8001"
     volumes:
       - uploads:/app/uploads
     depends_on:

@@ -123,6 +123,10 @@ One-time manual setup on the Hetzner server.
 - [ ] Create `/opt/health-signal/nginx/certs/` directory
 - [ ] Upload `origin.pem` and `origin.key` to `/opt/health-signal/nginx/certs/`
 
+### Task 5.2.1 — Verify no override file on server
+
+- [ ] Confirm `docker-compose.override.yml` does NOT exist on the server — it is gitignored and must not be created. Its absence ensures internal services (qdrant, backend, ai-agent) are not exposed to the internet.
+
 ### Task 5.3 — First deploy
 
 - [ ] `cd /opt/health-signal`
