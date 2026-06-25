@@ -82,6 +82,13 @@ docker-compose.override.yml
 # Local maintenance scripts (not for version control)
 scripts/
 
+# Server runbook (contains IPs and private infrastructure details)
+docs/server-runbook.md
+
+# TLS certificates (never commit)
+nginx/certs/*.pem
+nginx/certs/*.key
+
 # Eval generated outputs (results and reports are produced per run, not committed)
 eval/tests/*/results.json
 eval/tests/*/report.md

@@ -44,10 +44,10 @@ resource "hcloud_firewall" "default" {
   }
 }
 
-# CAX21 — ARM, 4 vCPU, 8 GB RAM, 80 GB SSD, Falkenstein (Germany)
+# CX33 — x86, 4 vCPU, 8 GB RAM, 80 GB SSD, Nuremberg (Germany)
 resource "hcloud_server" "main" {
   name        = "health-signal"
-  server_type = "cpx31"
+  server_type = "cx33"
   image       = "ubuntu-24.04"
   location    = "nbg1"
   ssh_keys    = [hcloud_ssh_key.default.id]
