@@ -1,6 +1,6 @@
 # Deployment Planning — Health Signal
 
-## Status: Planning
+## Status: Live — https://healthsignal.yakirzaken.com (Phase 6 CI/CD pending)
 
 ---
 
@@ -22,11 +22,12 @@
 - **Latency from Israel:** ~60-70ms to Germany — acceptable for this app; real bottleneck is OpenAI API latency, not server location
 - **IaC:** Terraform with the official Hetzner provider
 
-### Server — Single CAX21
+### Server — Single CX33
 
-- **Decision:** One CAX21 instance running all services
-- **Specs:** 4 vCPU (ARM), 8GB RAM, 80GB SSD NVMe
-- **Cost:** ~€8.49/month (~$9.40)
+- **Decision:** One CX33 instance running all services
+- **Specs:** 4 vCPU (x86), 8GB RAM, 80GB SSD NVMe, Nuremberg (nbg1)
+- **Cost:** ~€9.97/month
+- **Primary IP:** `167.235.51.149` | **Floating IP:** `46.225.252.169`
 - **Why single server:** Removing the local embedding model (see below) drops total RAM usage to ~2GB, making 8GB very comfortable for all services combined
 - **Runs:** Backend (FastAPI), AI-Agent (FastAPI), Qdrant, PostgreSQL (self-hosted)
 
@@ -118,7 +119,7 @@
 
 | Item | Cost/month |
 |------|-----------|
-| Hetzner CAX21 | €8.49 (~$9.40) |
+| Hetzner CX33 | €9.97 (~$11) |
 | Hetzner Floating IP | €1.19 (~$1.30) |
 | Hetzner Server Backups | €1.70 (~$1.90) |
 | Qwen3-Embedding API (OpenRouter) | ~$0.06 |
@@ -146,9 +147,11 @@
 
 ## 5. Open Decisions
 
-- [ ] Buy `yakirzaken.com` on Cloudflare Registrar and enable Cloudflare Proxy
-- [ ] Monitoring / alerting strategy
-- [x] Database migrations — run via GitHub Actions deploy script before containers restart
+- [x] Buy `yakirzaken.com` on Cloudflare Registrar and enable Cloudflare Proxy
+- [ ] Enable Hetzner server backups (one checkbox in dashboard, €1.70/month)
+- [ ] Set up CI/CD via GitHub Actions (Phase 6)
+- [ ] Monitoring / alerting strategy (Phase 9)
+- [x] Database migrations — run via `docker compose run --rm migrate` before containers restart
 - [x] CORS — no changes needed; frontend and backend share the same domain in production so CORS doesn't apply
 
 ---
