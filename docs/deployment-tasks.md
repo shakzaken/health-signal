@@ -1,6 +1,6 @@
 # Deployment Tasks — Health Signal
 
-## Status: Phase 8 in progress (eval fixes), Phase 3–7 pending
+## Status: Phases 3–5 complete, Phase 6 next
 
 ---
 
@@ -64,78 +64,67 @@ Provision the Hetzner server with Terraform.
 
 - [x] Create `terraform/` directory in repo root
 - [x] Write `terraform/main.tf` with:
-  - Hetzner provider (`hetznercloud/hcloud`)
-  - CAX21 server (ARM, 8GB RAM, Falkenstein Germany) with Docker installed via user_data
-  - Floating IP attached to the server
+  - CX33 server (x86, 4 vCPU, 8GB RAM, Nuremberg) with Docker installed via user_data
+  - Floating IP `46.225.252.169` attached to the server
   - Firewall: allow 22 (SSH), 80 (HTTP), 443 (HTTPS), block everything else
   - SSH key resource
 - [x] Write `terraform/variables.tf` for API token and SSH key
 - [x] Write `terraform/outputs.tf` — prints floating IP and SSH command after apply
-- [ ] Create `terraform/terraform.tfvars` from the example file (not committed — contains secrets)
-- [ ] Run `terraform init && terraform plan`
-- [ ] Run `terraform apply` — server is created
+- [x] Create `terraform/terraform.tfvars` (not committed — contains secrets)
+- [x] Run `terraform init && terraform plan`
+- [x] Run `terraform apply` — server created (primary IP: `167.235.51.149`, floating IP: `46.225.252.169`)
 
 ### Task 3.2 — Hetzner dashboard
 
 - [ ] Enable server backups (one checkbox, adds €1.70/month)
-- [ ] Note the Floating IP address — needed for DNS
+- [x] Floating IP address: `46.225.252.169`
 
 ---
 
 ## Phase 4 — Domain & DNS
 
-### Task 4.1 — Buy domain
+### Task 4.1 — Buy domain ✅
 
-- [ ] Register `yakirzaken.com` on [Cloudflare Registrar](https://domains.cloudflare.com)
+- [x] Registered `yakirzaken.com` on Cloudflare Registrar
 
-### Task 4.2 — DNS records
+### Task 4.2 — DNS records ✅
 
-- [ ] In Cloudflare DNS, add A record: `healthsignal.yakirzaken.com` → Hetzner Floating IP (proxy enabled)
-- [ ] In Cloudflare DNS, add A record: `yakirzaken.com` → Hetzner Floating IP (proxy enabled, for future portfolio)
-- [ ] Set Cloudflare SSL/TLS mode to **Full (Strict)**
+- [x] A record: `healthsignal.yakirzaken.com` → `46.225.252.169` (proxy enabled)
+- [x] Set Cloudflare SSL/TLS mode to **Full (Strict)**
 
-### Task 4.3 — TLS certificate
+### Task 4.3 — TLS certificate ✅
 
-- [ ] In Cloudflare dashboard → SSL/TLS → Origin Server → Create certificate
-- [ ] Download `origin.pem` and `origin.key`
-- [ ] Store copies in password manager
+- [x] Created Cloudflare Origin Certificate (RSA 2048, `*.yakirzaken.com`)
+- [x] Downloaded `origin.pem` and `origin.key`
+- [x] Stored in password manager
 
 ---
 
-## Phase 5 — Server Setup
+## Phase 5 — Server Setup ✅
 
 One-time manual setup on the Hetzner server.
 
-### Task 5.1 — Install dependencies
+### Task 5.1 — Install dependencies ✅
 
-- [ ] SSH into server: `ssh root@<floating-ip>`
-- [ ] Update system: `apt update && apt upgrade -y`
-- [ ] Install Docker: follow official Docker docs for Ubuntu
-- [ ] Install Docker Compose plugin: `apt install docker-compose-plugin`
-- [ ] Verify: `docker --version` and `docker compose version`
+- [x] Docker 29.6.0 and Docker Compose v5.2.0 installed automatically via Terraform cloud-init
 
-### Task 5.2 — Clone repo and configure
+### Task 5.2 — Clone repo and configure ✅
 
-- [ ] Clone repo: `git clone <repo-url> /opt/health-signal`
-- [ ] Create `/opt/health-signal/backend/.env` with production values
-- [ ] Create `/opt/health-signal/ai-agent/.env` with production values
-- [ ] Save both `.env` files in password manager as backup
-- [ ] Create `/opt/health-signal/nginx/certs/` directory
-- [ ] Upload `origin.pem` and `origin.key` to `/opt/health-signal/nginx/certs/`
+- [x] Cloned repo to `/opt/health-signal`
+- [x] Created `backend/.env` and `ai-agent/.env` with production values (copied via scp from local `.env.prod` files)
+- [x] Uploaded `origin.pem` and `origin.key` to `/opt/health-signal/nginx/certs/`
 
-### Task 5.2.1 — Verify no override file on server
+### Task 5.2.1 — Verify no override file on server ✅
 
-- [ ] Confirm `docker-compose.override.yml` does NOT exist on the server — it is gitignored and must not be created. Its absence ensures internal services (qdrant, backend, ai-agent) are not exposed to the internet.
+- [x] Confirmed `docker-compose.override.yml` does NOT exist on the server
 
-### Task 5.3 — First deploy
+### Task 5.3 — First deploy ✅
 
-- [ ] `cd /opt/health-signal`
-- [ ] `docker compose build`
-- [ ] `docker compose run --rm backend alembic upgrade head` — run migrations
-- [ ] `docker compose up -d` — start all services
-- [ ] `docker compose ps` — verify all containers are running
-- [ ] `docker compose logs backend` — check for startup errors
-- [ ] Open `https://healthsignal.yakirzaken.com` and verify the app loads
+- [x] `docker compose build` — all images built
+- [x] `docker compose run --rm migrate` — migrations applied
+- [x] `docker compose up -d` — all 5 containers running
+- [x] Configured floating IP on loopback via netplan (`/etc/netplan/60-floating-ip.yaml`)
+- [x] App live at https://healthsignal.yakirzaken.com
 
 ---
 
@@ -253,9 +242,9 @@ Not a blocker for launch. Add after the app is live.
 |-------|-------------|--------|
 | 1 | Code changes (embedder + build) | ✅ Done |
 | 2 | Dockerize all services | ✅ Done |
-| 3 | Provision Hetzner with Terraform | 🔲 Pending |
-| 4 | Domain, DNS, TLS | 🔲 Pending |
-| 5 | Server setup + first deploy | 🔲 Pending |
+| 3 | Provision Hetzner with Terraform | ✅ Done |
+| 4 | Domain, DNS, TLS | ✅ Done |
+| 5 | Server setup + first deploy | ✅ Done |
 | 6 | GitHub Actions CI/CD | 🔲 Pending |
 | 7 | Smoke test + launch | 🔲 Pending |
 | 8 | Answer quality — eval & fix loop | 🔄 In progress (16/21 on test 002) |
