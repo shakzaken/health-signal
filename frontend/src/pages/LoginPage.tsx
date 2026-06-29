@@ -5,29 +5,71 @@ import { PulseIcon } from '../components/Icons'
 type Mode = 'login' | 'register'
 
 export default function LoginPage() {
-  const { login, register } = useAuth()
+  const { login, register, resendVerification } = useAuth()
   const [mode, setMode] = useState<Mode>('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [registered, setRegistered] = useState(false)
+  const [unverified, setUnverified] = useState(false)
+  const [resendSent, setResendSent] = useState(false)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!email || !password) return
     setError('')
+    setUnverified(false)
     setLoading(true)
     try {
       if (mode === 'login') {
         await login(email, password)
       } else {
         await register(email, password)
+        setRegistered(true)
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong')
+      const msg = err instanceof Error ? err.message : 'Something went wrong'
+      if (msg.includes('verify your email')) {
+        setUnverified(true)
+      } else {
+        setError(msg)
+      }
     } finally {
       setLoading(false)
     }
+  }
+
+  async function handleResend() {
+    setResendSent(false)
+    try {
+      await resendVerification(email)
+      setResendSent(true)
+    } catch {
+      // Silent — backend always returns 200 to avoid enumeration
+      setResendSent(true)
+    }
+  }
+
+  if (registered) {
+    return (
+      <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font)', padding: 24 }}>
+        <div style={{ width: '100%', maxWidth: 400, textAlign: 'center' }}>
+          <div style={{ fontSize: 48, marginBottom: 16 }}>✉️</div>
+          <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--ink)', margin: '0 0 8px' }}>Check your email</h2>
+          <p style={{ fontSize: 14, color: 'var(--sub)', margin: '0 0 24px' }}>
+            We sent a verification link to <strong>{email}</strong>.<br />
+            Click the link to activate your account.
+          </p>
+          <button
+            onClick={() => { setRegistered(false); setMode('login') }}
+            style={{ background: 'none', border: 'none', color: 'var(--accent)', fontWeight: 600, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit' }}
+          >
+            Back to sign in
+          </button>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -147,17 +189,22 @@ export default function LoginPage() {
 
               {/* Error */}
               {error && (
-                <div
-                  style={{
-                    padding: '9px 12px',
-                    background: '#FBEAEA',
-                    border: '1px solid #F0CECE',
-                    borderRadius: 'calc(var(--radius) * 0.5)',
-                    fontSize: 13,
-                    color: '#A23E3E',
-                  }}
-                >
+                <div style={{ padding: '9px 12px', background: '#FBEAEA', border: '1px solid #F0CECE', borderRadius: 'calc(var(--radius) * 0.5)', fontSize: 13, color: '#A23E3E' }}>
                   {error}
+                </div>
+              )}
+
+              {/* Unverified account */}
+              {unverified && (
+                <div style={{ padding: '9px 12px', background: '#FFF8E1', border: '1px solid #FFE082', borderRadius: 'calc(var(--radius) * 0.5)', fontSize: 13, color: '#7A5A00' }}>
+                  Please verify your email before signing in.{' '}
+                  {resendSent ? (
+                    <span style={{ color: '#2E7D32', fontWeight: 600 }}>Email sent!</span>
+                  ) : (
+                    <button onClick={handleResend} style={{ background: 'none', border: 'none', color: 'var(--accent)', fontWeight: 600, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit', padding: 0 }}>
+                      Resend verification email
+                    </button>
+                  )}
                 </div>
               )}
 

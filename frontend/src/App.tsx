@@ -5,6 +5,7 @@ import UploadPage from './pages/UploadPage'
 import ChatPage from './pages/ChatPage'
 import ReportPage from './pages/ReportPage'
 import LoginPage from './pages/LoginPage'
+import VerifyEmailPage from './pages/VerifyEmailPage'
 import { useChat } from './hooks/useChat'
 import { useAuth } from './context/AuthContext'
 
@@ -12,6 +13,12 @@ function AppShell() {
   const { isAuthenticated } = useAuth()
   const [tab, setTab] = useState<Tab>('chat')
   const chatState = useChat()
+
+  // Handle /verify-email?token=... route
+  const params = new URLSearchParams(window.location.search)
+  if (window.location.pathname === '/verify-email' && params.get('token')) {
+    return <VerifyEmailPage token={params.get('token')!} />
+  }
 
   if (!isAuthenticated) {
     return <LoginPage />

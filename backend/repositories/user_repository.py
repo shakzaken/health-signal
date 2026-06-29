@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime
 from typing import Optional
 
 from sqlalchemy import select
@@ -23,9 +24,34 @@ class UserRepository:
         )
         return result.scalar_one_or_none()
 
-    async def create(self, email: str, hashed_password: str) -> User:
-        user = User(email=email, hashed_password=hashed_password)
+    async def get_by_verification_token(self, token: str) -> Optional[User]:
+        result = await self.session.execute(
+            select(User).where(User.verification_token == token)
+        )
+        return result.scalar_one_or_none()
+
+    async def create(self, email: str, hashed_password: str, verification_token: Optional[str], verification_token_expires_at: Optional[datetime], is_verified: bool = False) -> User:
+        user = User(
+            email=email,
+            hashed_password=hashed_password,
+            is_verified=is_verified,
+            verification_token=verification_token,
+            verification_token_expires_at=verification_token_expires_at,
+        )
         self.session.add(user)
         await self.session.commit()
         await self.session.refresh(user)
         return user
+
+    async def verify(self, user: User) -> User:
+        user.is_verified = True
+        user.verification_token = None
+        user.verification_token_expires_at = None
+        await self.session.commit()
+        await self.session.refresh(user)
+        return user
+
+    async def set_verification_token(self, user: User, token: str, expires_at: datetime) -> None:
+        user.verification_token = token
+        user.verification_token_expires_at = expires_at
+        await self.session.commit()
