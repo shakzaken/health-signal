@@ -85,6 +85,32 @@ class ConversationRepository:
         await self.session.refresh(msg)
         return msg
 
+    async def get_sessions_for_user(self, user_id: str) -> list[tuple[ConversationSession, str]]:
+        """Return all sessions for a user with the first user message as title."""
+        sessions_result = await self.session.execute(
+            select(ConversationSession)
+            .where(ConversationSession.user_id == user_id)
+            .order_by(ConversationSession.updated_at.desc())
+        )
+        sessions = list(sessions_result.scalars().all())
+
+        result = []
+        for s in sessions:
+            first_msg_result = await self.session.execute(
+                select(ConversationMessage)
+                .where(
+                    ConversationMessage.session_id == s.session_id,
+                    ConversationMessage.role == "user",
+                )
+                .order_by(ConversationMessage.created_at.asc())
+                .limit(1)
+            )
+            first_msg = first_msg_result.scalar_one_or_none()
+            if first_msg:
+                title = first_msg.content[:60] + ("…" if len(first_msg.content) > 60 else "")
+                result.append((s, title))
+        return result
+
     async def update_summary(self, session_id: uuid.UUID, summary: str) -> None:
         result = await self.session.execute(
             select(ConversationSession).where(

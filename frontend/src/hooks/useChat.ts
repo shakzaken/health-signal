@@ -1,45 +1,24 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import type { Message, SourceChunk, Session } from '../types'
-import { sendQueryStream } from '../api/backend'
+import { sendQueryStream, listConversations, fetchConversationMessages } from '../api/backend'
 
-const SESSIONS_KEY = 'hs_sessions'
-const ACTIVE_SESSION_KEY = 'hs_active_session'
+function activeSessionKey(userEmail: string) { return `hs_active_session_${userEmail}` }
 
-function loadSessions(): Session[] {
-  try {
-    const raw = localStorage.getItem(SESSIONS_KEY)
-    if (!raw) return []
-    const parsed = JSON.parse(raw) as Session[]
-    // Restore Date objects
-    return parsed.map((s) => ({ ...s, createdAt: new Date(s.createdAt) }))
-  } catch {
-    return []
-  }
-}
-
-function saveSessions(sessions: Session[]) {
-  try {
-    localStorage.setItem(SESSIONS_KEY, JSON.stringify(sessions))
-  } catch {
-    // ignore quota errors
-  }
-}
-
-function saveActiveSession(session: Session | null) {
+function saveActiveSession(userEmail: string, session: Session | null) {
   try {
     if (session) {
-      localStorage.setItem(ACTIVE_SESSION_KEY, JSON.stringify(session))
+      localStorage.setItem(activeSessionKey(userEmail), JSON.stringify(session))
     } else {
-      localStorage.removeItem(ACTIVE_SESSION_KEY)
+      localStorage.removeItem(activeSessionKey(userEmail))
     }
   } catch {
     // ignore quota errors
   }
 }
 
-function loadActiveSession(): Session | null {
+function loadActiveSession(userEmail: string): Session | null {
   try {
-    const raw = localStorage.getItem(ACTIVE_SESSION_KEY)
+    const raw = localStorage.getItem(activeSessionKey(userEmail))
     if (!raw) return null
     const parsed = JSON.parse(raw) as Session
     return { ...parsed, createdAt: new Date(parsed.createdAt) }
@@ -48,13 +27,31 @@ function loadActiveSession(): Session | null {
   }
 }
 
-export function useChat() {
-  const [messages, setMessages] = useState<Message[]>(() => loadActiveSession()?.messages ?? [])
-  const [sessionId, setSessionId] = useState<string>(() => loadActiveSession()?.id ?? crypto.randomUUID())
+export function useChat(userEmail: string) {
+  const [messages, setMessages] = useState<Message[]>(() => loadActiveSession(userEmail)?.messages ?? [])
+  const [sessionId, setSessionId] = useState<string>(() => loadActiveSession(userEmail)?.id ?? crypto.randomUUID())
   const [isLoading, setIsLoading] = useState(false)
-  const [sources, setSources] = useState<SourceChunk[]>(() => loadActiveSession()?.sources ?? [])
+  const [sources, setSources] = useState<SourceChunk[]>(() => loadActiveSession(userEmail)?.sources ?? [])
   const [error, setError] = useState<string | null>(null)
-  const [sessions, setSessions] = useState<Session[]>(() => loadSessions())
+  const [sessions, setSessions] = useState<Session[]>([])
+
+  // Load session list from server on mount
+  useEffect(() => {
+    if (!userEmail) return
+    listConversations()
+      .then((items) => {
+        setSessions(items.map((item) => ({
+          id: item.session_id,
+          title: item.title,
+          messages: [],
+          sources: [],
+          createdAt: new Date(item.updated_at),
+        })))
+      })
+      .catch(() => {
+        // Non-fatal — sidebar just stays empty
+      })
+  }, [userEmail])
 
   const sendMessage = useCallback(async (text: string) => {
     if (!text.trim() || isLoading) return
@@ -73,7 +70,6 @@ export function useChat() {
       for await (const event of sendQueryStream(text, sessionId)) {
         if (event.token !== undefined) {
           streamedContent += event.token
-          // Show partial message with streaming cursor in real-time
           setMessages([
             ...messagesWithUser,
             { role: 'assistant', content: streamedContent, streaming: true },
@@ -83,13 +79,11 @@ export function useChat() {
         }
       }
 
-      // Stream complete — finalize (remove streaming flag)
       const assistantMessage: Message = { role: 'assistant', content: streamedContent }
       const finalMessages = [...messagesWithUser, assistantMessage]
       setMessages(finalMessages)
       setSources(finalSources)
 
-      // Upsert this session in the sidebar
       const firstUserMsg = finalMessages.find((m) => m.role === 'user')
       const title = firstUserMsg
         ? firstUserMsg.content.slice(0, 60) + (firstUserMsg.content.length > 60 ? '…' : '')
@@ -101,25 +95,22 @@ export function useChat() {
         sources: finalSources,
         createdAt: new Date(),
       }
+
+      // Update sidebar — upsert this session
       setSessions((prev) => {
         const exists = prev.some((s) => s.id === sessionId)
-        const updated = exists
+        return exists
           ? prev.map((s) => (s.id === sessionId ? upserted : s))
           : [upserted, ...prev]
-        saveSessions(updated)
-        return updated
       })
 
-      // Persist active session so it survives page refresh
-      saveActiveSession(upserted)
+      saveActiveSession(userEmail, upserted)
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Something went wrong'
       setError(message)
-      // Remove user message if we got nothing back
       if (!streamedContent) {
         setMessages((prev) => prev.slice(0, -1))
       } else {
-        // Keep partial content without streaming flag
         setMessages([
           ...messagesWithUser,
           { role: 'assistant', content: streamedContent },
@@ -128,25 +119,47 @@ export function useChat() {
     } finally {
       setIsLoading(false)
     }
-  }, [isLoading, sessionId, messages])
+  }, [isLoading, sessionId, messages, userEmail])
 
   const newConversation = useCallback(() => {
-    // Session is already upserted in the sidebar after each response — just reset active state
-    saveActiveSession(null)
+    saveActiveSession(userEmail, null)
     setMessages([])
     setSources([])
     setError(null)
     setSessionId(crypto.randomUUID())
-  }, [])
+  }, [userEmail])
 
-  const restoreSession = useCallback((session: Session) => {
-    // Restore session as the active conversation; keep it in the sidebar history
-    setMessages(session.messages)
-    setSources(session.sources)
-    setSessionId(session.id)
-    setError(null)
-    saveActiveSession(session)
-  }, [])
+  const restoreSession = useCallback(async (session: Session) => {
+    // If messages are already loaded (current session), restore directly
+    if (session.messages.length > 0) {
+      setMessages(session.messages)
+      setSources(session.sources)
+      setSessionId(session.id)
+      setError(null)
+      saveActiveSession(userEmail, session)
+      return
+    }
+
+    // Fetch messages from server for sessions loaded from server list
+    try {
+      const data = await fetchConversationMessages(session.id)
+      const restored: Session = {
+        ...session,
+        messages: data.messages.map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content })),
+      }
+      setMessages(restored.messages)
+      setSources(restored.sources)
+      setSessionId(restored.id)
+      setError(null)
+      saveActiveSession(userEmail, restored)
+    } catch {
+      // Fallback — open empty session with same id
+      setMessages([])
+      setSources([])
+      setSessionId(session.id)
+      setError(null)
+    }
+  }, [userEmail])
 
   return { messages, sessionId, isLoading, sources, error, sessions, sendMessage, newConversation, restoreSession }
 }

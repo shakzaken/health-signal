@@ -8,7 +8,7 @@ from api.deps import get_current_user
 from db.session import get_session
 from models.user import User
 from repositories.conversation_repository import ConversationRepository
-from schemas.conversation import ConversationMessageResponse, ConversationSessionResponse
+from schemas.conversation import ConversationListItemResponse, ConversationMessageResponse, ConversationSessionResponse
 
 router = APIRouter(prefix="/conversations", tags=["conversations"])
 
@@ -24,6 +24,20 @@ class UpdateSummaryRequest(BaseModel):
 
 class CompressMessagesResponse(BaseModel):
     messages: list[ConversationMessageResponse]
+
+
+@router.get("", response_model=list[ConversationListItemResponse])
+async def list_conversations(
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    """Return all conversation sessions for the current user, ordered by most recent."""
+    repo = ConversationRepository(session)
+    sessions = await repo.get_sessions_for_user(str(current_user.id))
+    return [
+        ConversationListItemResponse(session_id=s.session_id, title=title, updated_at=s.updated_at)
+        for s, title in sessions
+    ]
 
 
 @router.get("/{session_id}", response_model=ConversationSessionResponse)

@@ -10,9 +10,9 @@ import { useChat } from './hooks/useChat'
 import { useAuth } from './context/AuthContext'
 
 function AppShell() {
-  const { isAuthenticated } = useAuth()
+  const { isAuthenticated, email } = useAuth()
   const [tab, setTab] = useState<Tab>('chat')
-  const chatState = useChat()
+  const chatState = useChat(email ?? '')
 
   // Handle /verify-email?token=... route
   const params = new URLSearchParams(window.location.search)
