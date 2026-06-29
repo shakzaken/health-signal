@@ -64,6 +64,7 @@ services:
       context: ./frontend
       args:
         VITE_BACKEND_URL: ""  # empty = relative URLs, nginx proxies /auth /documents /ai etc. to backend
+        VITE_SENTRY_DSN: ${VITE_SENTRY_DSN:-}
     ports:
       - "80:80"
       - "443:443"

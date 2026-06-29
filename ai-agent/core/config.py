@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     langsmith_api_key: str = ""
     langsmith_project: str = "health-signal"
     langchain_tracing_v2: str = "true"
+    sentry_dsn: str = ""
 
 
 settings = Settings()

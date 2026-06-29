@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     ai_agent_url: str = "http://localhost:8001"
     file_storage_path: str = "./uploads"
     environment: str = "production"
+    sentry_dsn: str = ""
 
 
 settings = Settings()

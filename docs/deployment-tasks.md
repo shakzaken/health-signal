@@ -1,6 +1,6 @@
 # Deployment Tasks — Health Signal
 
-## Status: Phases 3–5 complete, Phase 6 next
+## Status: Phases 3–6 complete, Phase 7 in progress (launch tasks remain: README + LinkedIn)
 
 ---
 
@@ -132,36 +132,38 @@ One-time manual setup on the Hetzner server.
 
 Automate future deploys via GitHub Actions.
 
-### Task 6.1 — GitHub secrets
+### Task 6.1 — GitHub secrets ✅
 
-- [ ] In GitHub repo → Settings → Secrets → Actions, add:
-  - `HETZNER_HOST` — Floating IP address
-  - `HETZNER_SSH_KEY` — private SSH key content
+- [x] Added `HETZNER_HOST` = `46.225.252.169`
+- [x] Added `HETZNER_SSH_KEY` = deploy key generated on server
 
-### Task 6.2 — GitHub Actions workflow
+### Task 6.2 — GitHub Actions workflow ✅
 
-- [ ] Create `.github/workflows/deploy.yml` with steps:
-  1. Trigger on push to `main`
-  2. SSH into server
-  3. `git pull`
-  4. `docker compose build`
-  5. `docker compose run --rm backend alembic upgrade head`
-  6. `docker compose up -d`
-- [ ] Push to `main` and verify the workflow runs successfully in GitHub Actions tab
-- [ ] Verify the new version is live at `healthsignal.yakirzaken.com`
+- [x] Created `.github/workflows/deploy.yml` using `appleboy/ssh-action@v1.0.3`
+- [x] Triggers on push to `main` — SSHes into server, git pull, build, migrate, up -d
+- [x] Pushed to `main` — workflow ran green ✅
+- [x] Verified live at `healthsignal.yakirzaken.com`
 
 ---
 
 ## Phase 7 — Smoke Test & Launch
 
-### Task 7.1 — Full end-to-end verification
+### Task 7.1 — Full end-to-end verification ✅
 
-- [ ] Register a new user
-- [ ] Upload a PDF document — verify processing completes
-- [ ] Ask a question in chat — verify streaming response and sources
-- [ ] Generate a doctor report — verify report is generated
-- [ ] Test Hebrew query — verify response is in Hebrew
-- [ ] Check all containers are healthy: `docker compose ps`
+Tested manually via browser (smoketest@healthsignal.dev with Daniel's eval data):
+
+- [x] Register a new user — instant, works correctly
+- [x] Upload documents — duplicate detection (409) working correctly
+- [x] Lab question — all abnormal markers listed with dates and values
+- [x] Pattern question — symptom/lab correlations identified correctly
+- [x] Timeline question — chronological March → August → December summary
+- [x] RAG question — answered from documents, "8 sources used" shown
+- [x] Safety guardrail — no diagnosis, data presented, doctor recommended
+- [x] Doctor Report — renders correctly with PDF download and Copy buttons
+- [x] Test Hebrew query — asked "מה היו תוצאות בדיקות הדם שלי?" (What were my blood test results?) → response came back fully in Hebrew ✅
+- [x] All 5 containers healthy: `docker compose ps`
+
+No bugs found. Doctor Report showed empty data for test (Daniel's 2024 data falls outside 1-year window when server date is 2026) — not a bug.
 
 ### Task 7.2 — Launch
 
@@ -245,7 +247,7 @@ Not a blocker for launch. Add after the app is live.
 | 3 | Provision Hetzner with Terraform | ✅ Done |
 | 4 | Domain, DNS, TLS | ✅ Done |
 | 5 | Server setup + first deploy | ✅ Done |
-| 6 | GitHub Actions CI/CD | 🔲 Pending |
-| 7 | Smoke test + launch | 🔲 Pending |
+| 6 | GitHub Actions CI/CD | ✅ Done |
+| 7 | Smoke test + launch | 🔄 In progress (launch tasks remain: README + LinkedIn) |
 | 8 | Answer quality — eval & fix loop | 🔄 In progress (16/21 on test 002) |
 | 9 | Monitoring | 🔲 Post-launch |
