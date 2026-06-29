@@ -87,6 +87,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const logout = useCallback(() => {
+    // Clear active session for this user before removing email
+    const currentEmail = localStorage.getItem(EMAIL_KEY)
+    if (currentEmail) {
+      localStorage.removeItem(`hs_active_session_${currentEmail}`)
+    }
     localStorage.removeItem(TOKEN_KEY)
     localStorage.removeItem(EMAIL_KEY)
     setToken(null)

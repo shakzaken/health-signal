@@ -20,3 +20,9 @@ class ConversationSessionResponse(BaseModel):
     updated_at: datetime
     total_count: int = 0
     messages: list[ConversationMessageResponse] = []
+
+
+class ConversationListItemResponse(BaseModel):
+    session_id: uuid.UUID
+    title: str
+    updated_at: datetime

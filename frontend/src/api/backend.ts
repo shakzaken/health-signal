@@ -149,3 +149,21 @@ export async function generateReport(periodDays: number): Promise<ReportResponse
     body: JSON.stringify({ period_days: periodDays }),
   })
 }
+
+export interface ConversationListItem {
+  session_id: string
+  title: string
+  updated_at: string
+}
+
+export interface ConversationMessagesResponse {
+  messages: { role: string; content: string }[]
+}
+
+export async function listConversations(): Promise<ConversationListItem[]> {
+  return request<ConversationListItem[]>('/conversations')
+}
+
+export async function fetchConversationMessages(sessionId: string): Promise<ConversationMessagesResponse> {
+  return request<ConversationMessagesResponse>(`/conversations/${sessionId}?recent=200`)
+}

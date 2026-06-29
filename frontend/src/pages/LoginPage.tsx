@@ -57,9 +57,12 @@ export default function LoginPage() {
         <div style={{ width: '100%', maxWidth: 400, textAlign: 'center' }}>
           <div style={{ fontSize: 48, marginBottom: 16 }}>✉️</div>
           <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--ink)', margin: '0 0 8px' }}>Check your email</h2>
-          <p style={{ fontSize: 14, color: 'var(--sub)', margin: '0 0 24px' }}>
+          <p style={{ fontSize: 14, color: 'var(--sub)', margin: '0 0 8px' }}>
             We sent a verification link to <strong>{email}</strong>.<br />
             Click the link to activate your account.
+          </p>
+          <p style={{ fontSize: 13, color: 'var(--faint)', margin: '0 0 24px' }}>
+            Don't see it? Check your spam or junk folder.
           </p>
           <button
             onClick={() => { setRegistered(false); setMode('login') }}
