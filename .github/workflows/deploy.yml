@@ -19,6 +19,7 @@ jobs:
           script: |
             cd /opt/health-signal
             git pull
+            set -a; source frontend/.env; set +a
             docker compose build
             docker compose run --rm migrate
             docker compose up -d
