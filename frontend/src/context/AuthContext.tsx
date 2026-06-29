@@ -1,5 +1,20 @@
 import { createContext, useContext, useState, useCallback, type ReactNode } from 'react'
 
+function extractDetail(data: Record<string, unknown>, fallback: string): string {
+  const detail = data.detail
+  if (!detail) return fallback
+  if (typeof detail === 'string') return detail
+  if (Array.isArray(detail)) {
+    return detail
+      .map((e) => {
+        const msg = typeof e === 'object' && e !== null && 'msg' in e ? String(e.msg) : String(e)
+        return msg.replace(/^Value error,\s*/i, '')
+      })
+      .join(', ')
+  }
+  return fallback
+}
+
 const TOKEN_KEY = 'hs_token'
 const EMAIL_KEY = 'hs_email'
 const BASE_URL = import.meta.env.VITE_BACKEND_URL ?? 'http://localhost:8000'
@@ -36,7 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     })
     if (!res.ok) {
       const data = await res.json().catch(() => ({}))
-      throw new Error(data.detail ?? 'Login failed')
+      throw new Error(extractDetail(data, 'Login failed'))
     }
     const data = await res.json()
     saveSession(data.access_token, email)
@@ -50,7 +65,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     })
     if (!res.ok) {
       const data = await res.json().catch(() => ({}))
-      throw new Error(data.detail ?? 'Registration failed')
+      throw new Error(extractDetail(data, 'Registration failed'))
     }
     const data = await res.json()
     // In dev, backend returns a token directly (no email verification)
@@ -66,7 +81,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     })
     if (!res.ok) {
       const data = await res.json().catch(() => ({}))
-      throw new Error(data.detail ?? 'Verification failed')
+      throw new Error(extractDetail(data, 'Verification failed'))
     }
     const data = await res.json()
     // We don't have the email here — store token only, email will be missing
@@ -82,7 +97,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     })
     if (!res.ok) {
       const data = await res.json().catch(() => ({}))
-      throw new Error(data.detail ?? 'Failed to resend verification email')
+      throw new Error(extractDetail(data, 'Failed to resend verification email'))
     }
   }, [])
 
