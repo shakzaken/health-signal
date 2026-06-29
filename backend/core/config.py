@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     resend_api_key: str = ""
     frontend_url: str = "https://healthsignal.yakirzaken.com"
     sentry_dsn: str = ""
+    google_client_id: str = ""
 
 
 settings = Settings()

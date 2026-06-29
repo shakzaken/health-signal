@@ -2,6 +2,8 @@ import secrets
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from google.auth.transport import requests as google_requests
+from google.oauth2 import id_token as google_id_token
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.config import settings
@@ -9,7 +11,7 @@ from core.logger import get_logger
 from core.security import create_access_token, hash_password, verify_password
 from db.session import get_session
 from repositories.user_repository import UserRepository
-from schemas.auth import LoginRequest, RegisterRequest, ResendVerificationRequest, TokenResponse
+from schemas.auth import GoogleVerifyRequest, LoginRequest, RegisterRequest, ResendVerificationRequest, TokenResponse
 from services.email_service import EmailService
 
 logger = get_logger(__name__)
@@ -117,7 +119,8 @@ async def login(
     repo = UserRepository(session)
     user = await repo.get_by_email(body.email)
     # Return 401 for both "not found" and "wrong password" — avoids user enumeration
-    if not user or not verify_password(body.password, user.hashed_password):
+    # Google-only users have no password — treat as invalid credentials
+    if not user or not user.hashed_password or not verify_password(body.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password",
@@ -130,5 +133,44 @@ async def login(
         )
 
     logger.info(f"User logged in — user_id={user.id}")
+    token = create_access_token(str(user.id))
+    return TokenResponse(access_token=token)
+
+
+@router.post("/google/verify", response_model=TokenResponse)
+async def google_verify(
+    body: GoogleVerifyRequest,
+    session: AsyncSession = Depends(get_session),
+):
+    if not settings.google_client_id:
+        raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED, detail="Google login is not configured")
+
+    try:
+        id_info = google_id_token.verify_oauth2_token(
+            body.credential,
+            google_requests.Request(),
+            settings.google_client_id,
+        )
+    except ValueError:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid Google token")
+
+    google_user_id = id_info["sub"]
+    email = id_info["email"]
+
+    repo = UserRepository(session)
+
+    # Check if this Google account is already linked
+    user = await repo.get_by_provider_id("google", google_user_id)
+
+    if not user:
+        # Check if an email-based account already exists — link it
+        user = await repo.get_by_email(email)
+        if user:
+            await repo.link_provider(user, "google", google_user_id)
+        else:
+            user = await repo.create_google_user(email=email, provider_user_id=google_user_id)
+            logger.info(f"New user via Google — user_id={user.id} email={email}")
+
+    logger.info(f"User logged in via Google — user_id={user.id}")
     token = create_access_token(str(user.id))
     return TokenResponse(access_token=token)

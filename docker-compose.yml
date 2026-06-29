@@ -21,7 +21,9 @@ services:
 
   migrate:
     build: ./backend
-    env_file: backend/.env
+    env_file:
+      - path: ./backend/.env
+        required: true
     environment:
       DATABASE_URL: postgresql+asyncpg://yakir@postgres:5432/healthsignal
     command: ["alembic", "upgrade", "head"]
@@ -31,7 +33,9 @@ services:
 
   backend:
     build: ./backend
-    env_file: backend/.env
+    env_file:
+      - path: ./backend/.env
+        required: true
     environment:
       # Override .env.backend values with docker-internal hostnames
       DATABASE_URL: postgresql+asyncpg://yakir@postgres:5432/healthsignal
@@ -47,7 +51,9 @@ services:
 
   ai-agent:
     build: ./ai-agent
-    env_file: ai-agent/.env
+    env_file:
+      - path: ./ai-agent/.env
+        required: true
     environment:
       # Override .env.ai-agent values with docker-internal hostnames
       DATABASE_URL: postgresql+asyncpg://yakir@postgres:5432/healthsignal
@@ -62,9 +68,13 @@ services:
   nginx:
     build:
       context: ./frontend
+      env_file:
+        - path: ./frontend/.env
+          required: true
       args:
         VITE_BACKEND_URL: ""  # empty = relative URLs, nginx proxies /auth /documents /ai etc. to backend
         VITE_SENTRY_DSN: ${VITE_SENTRY_DSN:-}
+        VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID:-}
     ports:
       - "80:80"
       - "443:443"
