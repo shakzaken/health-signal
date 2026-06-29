@@ -1,7 +1,9 @@
 import os
 from contextlib import asynccontextmanager
 
+import sentry_sdk
 from fastapi import FastAPI, Request
+from sentry_sdk.integrations.fastapi import FastApiIntegration
 
 from api.routes import health, ingest, query, report
 from core.config import settings
@@ -9,6 +11,9 @@ from core.logger import get_logger
 from rag.qdrant_client import ensure_collection, get_qdrant_client
 
 logger = get_logger(__name__)
+
+if settings.sentry_dsn:
+    sentry_sdk.init(dsn=settings.sentry_dsn, integrations=[FastApiIntegration()])
 
 # Set LangSmith env vars before any langchain import
 os.environ["LANGCHAIN_TRACING_V2"] = settings.langchain_tracing_v2
