@@ -13,6 +13,8 @@ class Settings(BaseSettings):
     ai_agent_url: str = "http://localhost:8001"
     file_storage_path: str = "./uploads"
     environment: str = "production"
+    resend_api_key: str = ""
+    frontend_url: str = "https://healthsignal.yakirzaken.com"
     sentry_dsn: str = ""
 
 

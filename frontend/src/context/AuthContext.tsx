@@ -10,6 +10,8 @@ interface AuthContextValue {
   isAuthenticated: boolean
   login: (email: string, password: string) => Promise<void>
   register: (email: string, password: string) => Promise<void>
+  verifyEmail: (token: string) => Promise<void>
+  resendVerification: (email: string) => Promise<void>
   logout: () => void
 }
 
@@ -51,8 +53,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error(data.detail ?? 'Registration failed')
     }
     const data = await res.json()
-    saveSession(data.access_token, email)
+    // In dev, backend returns a token directly (no email verification)
+    if (data.access_token) {
+      saveSession(data.access_token, email)
+    }
+    // In production, no token returned — user must verify email first
   }, [saveSession])
+
+  const verifyEmail = useCallback(async (token: string) => {
+    const res = await fetch(`${BASE_URL}/auth/verify-email?token=${encodeURIComponent(token)}`, {
+      method: 'POST',
+    })
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      throw new Error(data.detail ?? 'Verification failed')
+    }
+    const data = await res.json()
+    // We don't have the email here — store token only, email will be missing
+    localStorage.setItem(TOKEN_KEY, data.access_token)
+    setToken(data.access_token)
+  }, [])
+
+  const resendVerification = useCallback(async (email: string) => {
+    const res = await fetch(`${BASE_URL}/auth/resend-verification`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    })
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      throw new Error(data.detail ?? 'Failed to resend verification email')
+    }
+  }, [])
 
   const logout = useCallback(() => {
     localStorage.removeItem(TOKEN_KEY)
@@ -62,7 +94,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   return (
-    <AuthContext.Provider value={{ token, email, isAuthenticated: !!token, login, register, logout }}>
+    <AuthContext.Provider value={{ token, email, isAuthenticated: !!token, login, register, verifyEmail, resendVerification, logout }}>
       {children}
     </AuthContext.Provider>
   )

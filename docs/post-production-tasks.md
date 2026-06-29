@@ -9,8 +9,8 @@
 | Phase | Description | Status |
 |-------|-------------|--------|
 | 1 | Backups | 🔲 Not started |
-| 2 | Monitoring | 🔄 In progress (Sentry deploy remaining) |
-| 3 | Auth improvements | 🔲 Not started |
+| 2 | Monitoring | ✅ Done |
+| 3 | Auth improvements | 🔄 In progress |
 | 4 | Admin panel | 🔲 Not started |
 | 5 | Answer quality (eval fixes) | 🔲 Not started |
 
@@ -34,21 +34,21 @@
 - [x] Add monitor for `https://healthsignal.yakirzaken.com` (HTTPS, every 5 minutes)
 - [x] Configure email alert for downtime
 
-### Task 2.2 — Sentry (error tracking) 🔄 In progress
+### Task 2.2 — Sentry (error tracking) ✅
 
 **Backend**
 - [x] Create Sentry account and project (Python/FastAPI)
 - [x] Add `sentry-sdk[fastapi]` to `backend/pyproject.toml`
 - [x] Initialize Sentry in `backend/main.py` with `SENTRY_DSN` env var
 - [x] Add `SENTRY_DSN` to `backend/.env` locally — tested, events confirmed in Sentry dashboard
-- [ ] Add `SENTRY_DSN` to `backend/.env` on server
+- [x] Add `SENTRY_DSN` to `backend/.env` on server
 
 **AI-Agent**
 - [x] Create Sentry project (Python/FastAPI)
 - [x] Add `sentry-sdk[fastapi]` to `ai-agent/pyproject.toml`
 - [x] Initialize Sentry in `ai-agent/main.py` with `SENTRY_DSN` env var
 - [x] Add `SENTRY_DSN` to `ai-agent/.env` locally — tested, events confirmed in Sentry dashboard
-- [ ] Add `SENTRY_DSN` to `ai-agent/.env` on server
+- [x] Add `SENTRY_DSN` to `ai-agent/.env` on server
 
 **Frontend**
 - [x] Create Sentry project (React)
@@ -56,47 +56,50 @@
 - [x] Initialize Sentry in `frontend/src/main.tsx` with `VITE_SENTRY_DSN`
 - [x] Add `VITE_SENTRY_DSN` build arg to `frontend/Dockerfile` and `docker-compose.yml`
 - [x] Add `VITE_SENTRY_DSN` to `frontend/.env.local` locally
-- [ ] Add `VITE_SENTRY_DSN` to root `.env` on server
-- [ ] Test frontend Sentry in production after deploy
+- [x] Add `VITE_SENTRY_DSN` to root `.env` on server
+- [x] Test frontend Sentry in production after deploy — errors confirmed in Sentry dashboard
+- [x] Added `Sentry.ErrorBoundary` wrapper in `main.tsx` to capture React render errors
 
 **Deploy**
-- [ ] Push changes to `main` — CI/CD will rebuild all services with Sentry enabled
+- [x] Pushed to `main` — all services rebuilt with Sentry enabled
 
 ---
 
 ## Phase 3 — Auth improvements
 
-### Task 4.1 — Password rules
+### Task 4.1 — Password rules ✅
 
-- [ ] Add Pydantic validator on the register endpoint (`backend/api/routes/auth.py`)
-- [ ] Rules: min 8 characters + at least 1 uppercase + at least 1 number
-- [ ] Return clear error message if validation fails
-- [ ] Test: valid password passes, weak password rejected
+- [x] Add Pydantic validator on the register endpoint (`backend/schemas/auth.py`)
+- [x] Rules: min 8 characters + at least 1 uppercase + at least 1 number
+- [x] Return clear error message if validation fails
+- [x] QA tested — 15/15 cases passing
 
-### Task 4.2 — Email confirmation
+### Task 4.2 — Email confirmation 🔄 In progress
 
 **Database**
-- [ ] Add columns to `users` table: `is_verified` (bool, default false), `verification_token` (str, nullable), `verification_token_expires_at` (datetime, nullable)
-- [ ] Write Alembic migration
+- [x] Add columns to `users` table: `is_verified` (bool, default false), `verification_token` (str, nullable), `verification_token_expires_at` (datetime, nullable)
+- [x] Write Alembic migration (`c4d5e6f7a8b9_add_email_verification_to_users.py`)
 
 **Backend**
-- [ ] On register: generate a secure random token, save to DB with 24h expiry, send verification email
-- [ ] Add `POST /auth/verify-email?token=...` endpoint — validates token, marks user as verified, clears token
-- [ ] Block login for unverified users (return 403 with clear message)
-- [ ] Add `POST /auth/resend-verification` endpoint for users who didn't receive the email
+- [x] On register (production): generate secure token, save to DB with 24h expiry, send verification email
+- [x] On register (dev): auto-verify, return token immediately — no email sent
+- [x] Add `POST /auth/verify-email?token=...` endpoint — validates token, marks user as verified, returns JWT
+- [x] Block login for unverified users in production (403 with clear message)
+- [x] Add `POST /auth/resend-verification` endpoint
+- [x] Add `resend` to `backend/pyproject.toml`
+- [x] Write email template in `backend/services/email_service.py`
+- [x] Add `RESEND_API_KEY` and `FRONTEND_URL` to `backend/core/config.py`
 
-**Email (Resend)**
+**Email (Resend) — pending setup**
 - [ ] Create Resend account at resend.com
 - [ ] Add DNS records to Cloudflare (SPF, DKIM) for `yakirzaken.com`
 - [ ] Verify domain in Resend dashboard
-- [ ] Add `resend` to `backend/pyproject.toml`
-- [ ] Write email template for verification email (sender: `noreply@yakirzaken.com`)
-- [ ] Add `RESEND_API_KEY` to `backend/.env` on server
+- [ ] Get API key and add `RESEND_API_KEY` to `backend/.env` on server
 
 **Frontend**
-- [ ] Show "Check your email" screen after registration
-- [ ] Handle `/verify-email` route — call backend with token, show success/error
-- [ ] Show "Resend verification email" link on login if account is unverified
+- [x] Show "Check your email" screen after registration (production only)
+- [x] Handle `/verify-email?token=...` route — `VerifyEmailPage.tsx`
+- [x] Show "Resend verification email" link on login if account is unverified
 
 ### Task 4.3 — Google OAuth
 
