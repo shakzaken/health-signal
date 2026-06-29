@@ -12,7 +12,9 @@ class User(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     email: Mapped[str] = mapped_column(unique=True, index=True)
-    hashed_password: Mapped[str]
+    hashed_password: Mapped[Optional[str]] = mapped_column(nullable=True)
+    provider: Mapped[Optional[str]] = mapped_column(default=None, nullable=True)
+    provider_user_id: Mapped[Optional[str]] = mapped_column(default=None, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         default=lambda: datetime.now(timezone.utc).replace(tzinfo=None)
     )

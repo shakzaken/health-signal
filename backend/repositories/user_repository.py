@@ -30,6 +30,31 @@ class UserRepository:
         )
         return result.scalar_one_or_none()
 
+    async def get_by_provider_id(self, provider: str, provider_user_id: str) -> Optional[User]:
+        result = await self.session.execute(
+            select(User).where(User.provider == provider, User.provider_user_id == provider_user_id)
+        )
+        return result.scalar_one_or_none()
+
+    async def create_google_user(self, email: str, provider_user_id: str) -> User:
+        user = User(
+            email=email,
+            hashed_password=None,
+            provider="google",
+            provider_user_id=provider_user_id,
+            is_verified=True,
+        )
+        self.session.add(user)
+        await self.session.commit()
+        await self.session.refresh(user)
+        return user
+
+    async def link_provider(self, user: User, provider: str, provider_user_id: str) -> None:
+        user.provider = provider
+        user.provider_user_id = provider_user_id
+        user.is_verified = True
+        await self.session.commit()
+
     async def create(self, email: str, hashed_password: str, verification_token: Optional[str], verification_token_expires_at: Optional[datetime], is_verified: bool = False) -> User:
         user = User(
             email=email,

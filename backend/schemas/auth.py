@@ -26,6 +26,10 @@ class ResendVerificationRequest(BaseModel):
     email: EmailStr
 
 
+class GoogleVerifyRequest(BaseModel):
+    credential: str
+
+
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"

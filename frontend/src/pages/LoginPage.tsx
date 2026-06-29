@@ -1,11 +1,12 @@
 import { useState } from 'react'
+import { GoogleLogin } from '@react-oauth/google'
 import { useAuth } from '../context/AuthContext'
 import { PulseIcon } from '../components/Icons'
 
 type Mode = 'login' | 'register'
 
 export default function LoginPage() {
-  const { login, register, resendVerification } = useAuth()
+  const { login, register, googleLogin, resendVerification } = useAuth()
   const [mode, setMode] = useState<Mode>('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -234,6 +235,28 @@ export default function LoginPage() {
               </button>
             </div>
           </form>
+
+          {/* Divider */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '20px 0 0' }}>
+            <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+            <span style={{ fontSize: 12, color: 'var(--faint)', whiteSpace: 'nowrap' }}>or continue with</span>
+            <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+          </div>
+
+          {/* Google login */}
+          <div style={{ marginTop: 14, display: 'flex', justifyContent: 'center' }}>
+            <GoogleLogin
+              onSuccess={(response) => {
+                if (response.credential) {
+                  googleLogin(response.credential).catch((err) => {
+                    setError(err instanceof Error ? err.message : 'Google login failed')
+                  })
+                }
+              }}
+              onError={() => setError('Google login failed')}
+              width="352"
+            />
+          </div>
 
           {/* Toggle mode */}
           <div style={{ marginTop: 20, textAlign: 'center', fontSize: 13, color: 'var(--sub)' }}>

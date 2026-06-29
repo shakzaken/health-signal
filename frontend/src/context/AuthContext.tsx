@@ -25,6 +25,7 @@ interface AuthContextValue {
   isAuthenticated: boolean
   login: (email: string, password: string) => Promise<void>
   register: (email: string, password: string) => Promise<void>
+  googleLogin: (credential: string) => Promise<void>
   verifyEmail: (token: string) => Promise<void>
   resendVerification: (email: string) => Promise<void>
   logout: () => void
@@ -75,6 +76,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // In production, no token returned — user must verify email first
   }, [saveSession])
 
+  const googleLogin = useCallback(async (credential: string) => {
+    // Extract email from the Google ID token before sending to backend
+    let userEmail = ''
+    try {
+      const googlePayload = JSON.parse(atob(credential.split('.')[1]))
+      userEmail = googlePayload.email ?? ''
+    } catch { /* ignore — saveSession will use empty string */ }
+
+    const res = await fetch(`${BASE_URL}/auth/google/verify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ credential }),
+    })
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      throw new Error(extractDetail(data, 'Google login failed'))
+    }
+    const data = await res.json()
+    saveSession(data.access_token, userEmail)
+  }, [saveSession])
+
   const verifyEmail = useCallback(async (token: string) => {
     const res = await fetch(`${BASE_URL}/auth/verify-email?token=${encodeURIComponent(token)}`, {
       method: 'POST',
@@ -114,7 +136,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   return (
-    <AuthContext.Provider value={{ token, email, isAuthenticated: !!token, login, register, verifyEmail, resendVerification, logout }}>
+    <AuthContext.Provider value={{ token, email, isAuthenticated: !!token, login, register, googleLogin, verifyEmail, resendVerification, logout }}>
       {children}
     </AuthContext.Provider>
   )
