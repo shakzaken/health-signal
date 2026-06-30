@@ -11,7 +11,7 @@ def make_fetch_lab_results(backend_url: str, token: str):
         headers = {"Authorization": f"Bearer {token}"}
         async with httpx.AsyncClient() as client:
             response = await client.get(
-                f"{backend_url}/lab-results", headers=headers, timeout=10.0
+                f"{backend_url}/api/lab-results", headers=headers, timeout=10.0
             )
             response.raise_for_status()
             results = response.json()
@@ -66,7 +66,7 @@ def make_get_marker_history(backend_url: str, token: str):
         headers = {"Authorization": f"Bearer {token}"}
         async with httpx.AsyncClient() as client:
             response = await client.get(
-                f"{backend_url}/lab-results/markers/{marker_name}/history",
+                f"{backend_url}/api/lab-results/markers/{marker_name}/history",
                 headers=headers,
                 timeout=10.0,
             )

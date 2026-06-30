@@ -33,7 +33,7 @@ class ConversationMemory:
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.get(
-                    f"{self._backend_url}/conversations/{session_id}",
+                    f"{self._backend_url}/api/conversations/{session_id}",
                     headers=self._headers,
                     params={"recent": 6},
                     timeout=10.0,
@@ -62,14 +62,14 @@ class ConversationMemory:
             async with httpx.AsyncClient() as client:
                 for role, content in [("user", question), ("assistant", answer)]:
                     resp = await client.post(
-                        f"{self._backend_url}/conversations/{session_id}/messages",
+                        f"{self._backend_url}/api/conversations/{session_id}/messages",
                         json={"role": role, "content": content},
                         headers=self._headers,
                         timeout=10.0,
                     )
                     resp.raise_for_status()
                 count_resp = await client.get(
-                    f"{self._backend_url}/conversations/{session_id}",
+                    f"{self._backend_url}/api/conversations/{session_id}",
                     headers=self._headers,
                     params={"recent": 0},
                     timeout=10.0,
@@ -100,7 +100,7 @@ class ConversationMemory:
         try:
             async with httpx.AsyncClient() as client:
                 resp = await client.get(
-                    f"{self._backend_url}/conversations/{session_id}/to-compress",
+                    f"{self._backend_url}/api/conversations/{session_id}/to-compress",
                     headers=self._headers,
                     params={"keep_last": 6},
                     timeout=10.0,
@@ -117,7 +117,7 @@ class ConversationMemory:
             new_summary = await summarize_fn(transcript, config=config)
             async with httpx.AsyncClient() as client:
                 await client.put(
-                    f"{self._backend_url}/conversations/{session_id}/summary",
+                    f"{self._backend_url}/api/conversations/{session_id}/summary",
                     json={"summary": new_summary},
                     headers=self._headers,
                     timeout=10.0,
