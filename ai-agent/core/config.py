@@ -8,10 +8,15 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    database_url: str
+    postgres_host: str = "localhost"
+    postgres_port: int = 5432
+    postgres_user: str = "adminuser"
+    postgres_password: str
+    postgres_db: str = "healthsignal"
     secret_key: str
     qdrant_host: str = "localhost"
     qdrant_port: int = 6333
+    qdrant_api_key: str = ""
     openai_api_key: str
     openai_model: str = "gpt-4.1-nano"
     openrouter_api_key: str
@@ -21,6 +26,13 @@ class Settings(BaseSettings):
     langsmith_project: str = "health-signal"
     langchain_tracing_v2: str = "true"
     sentry_dsn: str = ""
+
+    @property
+    def database_url(self) -> str:
+        return (
+            f"postgresql+asyncpg://{self.postgres_user}:{self.postgres_password}"
+            f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
+        )
 
 
 settings = Settings()

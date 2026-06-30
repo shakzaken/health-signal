@@ -3,19 +3,21 @@ services:
   postgres:
     image: postgres:17-alpine
     environment:
-      POSTGRES_USER: yakir
+      POSTGRES_USER: adminuser
       POSTGRES_DB: healthsignal
-      POSTGRES_HOST_AUTH_METHOD: trust
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U yakir -d healthsignal"]
+      test: ["CMD-SHELL", "pg_isready -U adminuser -d healthsignal"]
       interval: 5s
       timeout: 5s
       retries: 10
 
   qdrant:
     image: qdrant/qdrant
+    environment:
+      QDRANT__SERVICE__API_KEY: ${QDRANT_API_KEY}
     volumes:
       - qdrant_data:/qdrant/storage
 
@@ -23,7 +25,9 @@ services:
     build: ./backend
     env_file: ./backend/.env
     environment:
-      DATABASE_URL: postgresql+asyncpg://yakir@postgres:5432/healthsignal
+      # Override .env.backend values with docker-internal hostnames
+      POSTGRES_HOST: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     command: ["alembic", "upgrade", "head"]
     depends_on:
       postgres:
@@ -34,7 +38,8 @@ services:
     env_file: ./backend/.env
     environment:
       # Override .env.backend values with docker-internal hostnames
-      DATABASE_URL: postgresql+asyncpg://yakir@postgres:5432/healthsignal
+      POSTGRES_HOST: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       AI_AGENT_URL: http://ai-agent:8001
       FILE_STORAGE_PATH: /app/uploads
     volumes:
@@ -50,9 +55,11 @@ services:
     env_file: ./ai-agent/.env
     environment:
       # Override .env.ai-agent values with docker-internal hostnames
-      DATABASE_URL: postgresql+asyncpg://yakir@postgres:5432/healthsignal
+      POSTGRES_HOST: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       BACKEND_URL: http://backend:8000
       QDRANT_HOST: qdrant
+      QDRANT_API_KEY: ${QDRANT_API_KEY}
     volumes:
       - uploads:/app/uploads
     depends_on:

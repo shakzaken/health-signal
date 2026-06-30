@@ -8,7 +8,11 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    database_url: str
+    postgres_host: str = "localhost"
+    postgres_port: int = 5432
+    postgres_user: str = "adminuser"
+    postgres_password: str
+    postgres_db: str = "healthsignal"
     secret_key: str
     ai_agent_url: str = "http://localhost:8001"
     file_storage_path: str = "./uploads"
@@ -18,6 +22,13 @@ class Settings(BaseSettings):
     sentry_dsn: str = ""
     google_client_id: str = ""
     admin_email: str = ""
+
+    @property
+    def database_url(self) -> str:
+        return (
+            f"postgresql+asyncpg://{self.postgres_user}:{self.postgres_password}"
+            f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
+        )
 
 
 settings = Settings()

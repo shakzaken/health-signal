@@ -8,7 +8,14 @@ VECTOR_SIZE = 4096  # qwen/qwen3-embedding-8b
 
 
 def get_qdrant_client() -> QdrantClient:
-    return QdrantClient(host=settings.qdrant_host, port=settings.qdrant_port)
+    # https=False — self-hosted Qdrant has no TLS; the client defaults to
+    # https=True whenever an api_key is set (assumes Qdrant Cloud) unless told otherwise.
+    return QdrantClient(
+        host=settings.qdrant_host,
+        port=settings.qdrant_port,
+        api_key=settings.qdrant_api_key or None,
+        https=False,
+    )
 
 
 def ensure_collection(client: QdrantClient) -> None:

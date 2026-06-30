@@ -19,18 +19,17 @@ import models.timeline  # noqa: F401, E402
 import models.conversation  # noqa: F401, E402
 import models.user  # noqa: F401, E402
 import models.usage_event  # noqa: F401, E402
+from core.config import settings  # noqa: E402
 
 config = context.config
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# Allow DATABASE_URL env var to override alembic.ini — needed for Docker/CI.
+# Build the sync URL from Settings (POSTGRES_HOST/PORT/USER/PASSWORD/DB env vars) —
 # Alembic requires a sync driver so asyncpg is swapped for psycopg2.
-_db_url = os.environ.get("DATABASE_URL")
-if _db_url:
-    _db_url = _db_url.replace("postgresql+asyncpg://", "postgresql+psycopg2://")
-    config.set_main_option("sqlalchemy.url", _db_url)
+_db_url = settings.database_url.replace("postgresql+asyncpg://", "postgresql+psycopg2://")
+config.set_main_option("sqlalchemy.url", _db_url)
 
 target_metadata = Base.metadata
 
