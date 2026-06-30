@@ -8,7 +8,7 @@ from core.logger import get_logger
 from ingestion.pipeline import IngestionPipeline
 
 logger = get_logger(__name__)
-router = APIRouter(prefix="/ingest", tags=["ingest"])
+router = APIRouter(prefix="/api/ingest", tags=["ingest"])
 
 
 class IngestRequest(BaseModel):

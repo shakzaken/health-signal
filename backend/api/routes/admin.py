@@ -14,7 +14,7 @@ from repositories.usage_event_repository import UsageEventRepository, days_ago
 from schemas.admin import AdminCreateUserRequest, AdminStatsResponse, AdminUserResponse
 
 logger = get_logger(__name__)
-router = APIRouter(prefix="/admin", tags=["admin"])
+router = APIRouter(prefix="/api/admin", tags=["admin"])
 
 
 @router.get("/stats", response_model=AdminStatsResponse)

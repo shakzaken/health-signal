@@ -10,7 +10,7 @@ from models.user import User
 from repositories.supplement_repository import SupplementRepository
 from schemas.supplement import SupplementEntryResponse
 
-router = APIRouter(prefix="/supplement-entries", tags=["supplements"])
+router = APIRouter(prefix="/api/supplement-entries", tags=["supplements"])
 
 
 @router.get("", response_model=list[SupplementEntryResponse])

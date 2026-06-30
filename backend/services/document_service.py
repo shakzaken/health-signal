@@ -103,7 +103,7 @@ class DocumentService:
         logger.info(f"Triggering ingestion — document_id={document.id} ai_agent_url={settings.ai_agent_url}")
         try:
             async with httpx.AsyncClient(timeout=300.0) as client:
-                response = await client.post(f"{settings.ai_agent_url}/ingest", json=payload)
+                response = await client.post(f"{settings.ai_agent_url}/api/ingest", json=payload)
                 logger.info(f"Ingestion response — status={response.status_code}")
                 result = response.json()
 

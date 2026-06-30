@@ -10,7 +10,7 @@ from models.user import User
 from repositories.conversation_repository import ConversationRepository
 from schemas.conversation import ConversationListItemResponse, ConversationMessageResponse, ConversationSessionResponse
 
-router = APIRouter(prefix="/conversations", tags=["conversations"])
+router = APIRouter(prefix="/api/conversations", tags=["conversations"])
 
 
 class AppendMessageRequest(BaseModel):

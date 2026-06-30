@@ -50,18 +50,18 @@ export async function uploadDocument(
   if (sourceDate) {
     form.append('source_date', sourceDate)
   }
-  return request<DocumentUploadResponse>('/documents/upload', {
+  return request<DocumentUploadResponse>('/api/documents/upload', {
     method: 'POST',
     body: form,
   })
 }
 
 export async function getDocumentStatus(id: string): Promise<DocumentResponse> {
-  return request<DocumentResponse>(`/documents/${id}`)
+  return request<DocumentResponse>(`/api/documents/${id}`)
 }
 
 export async function listDocuments(): Promise<DocumentResponse[]> {
-  return request<DocumentResponse[]>('/documents')
+  return request<DocumentResponse[]>('/api/documents')
 }
 
 // ── AI agent (proxied through backend) ────────────────────────────────────
@@ -83,7 +83,7 @@ export async function sendQuery(
   question: string,
   sessionId: string,
 ): Promise<QueryResponse> {
-  return request<QueryResponse>('/ai/query', {
+  return request<QueryResponse>('/api/ai/query', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ question, session_id: sessionId }),
@@ -95,7 +95,7 @@ export async function* sendQueryStream(
   sessionId: string,
 ): AsyncGenerator<StreamEvent> {
   const token = getToken()
-  const res = await fetch(`${BASE_URL}/ai/query/stream`, {
+  const res = await fetch(`${BASE_URL}/api/ai/query/stream`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -143,7 +143,7 @@ export async function* sendQueryStream(
 }
 
 export async function generateReport(periodDays: number): Promise<ReportResponse> {
-  return request<ReportResponse>('/ai/report/generate', {
+  return request<ReportResponse>('/api/ai/report/generate', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ period_days: periodDays }),
@@ -161,9 +161,9 @@ export interface ConversationMessagesResponse {
 }
 
 export async function listConversations(): Promise<ConversationListItem[]> {
-  return request<ConversationListItem[]>('/conversations')
+  return request<ConversationListItem[]>('/api/conversations')
 }
 
 export async function fetchConversationMessages(sessionId: string): Promise<ConversationMessagesResponse> {
-  return request<ConversationMessagesResponse>(`/conversations/${sessionId}?recent=200`)
+  return request<ConversationMessagesResponse>(`/api/conversations/${sessionId}?recent=200`)
 }

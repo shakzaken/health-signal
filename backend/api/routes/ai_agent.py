@@ -24,7 +24,7 @@ from repositories.usage_event_repository import UsageEventRepository
 
 logger = get_logger(__name__)
 
-router = APIRouter(prefix="/ai", tags=["ai-agent"])
+router = APIRouter(prefix="/api/ai", tags=["ai-agent"])
 
 # Timeout for non-streaming calls (report generation can be slow)
 QUERY_TIMEOUT = 120.0
@@ -62,7 +62,7 @@ async def proxy_query_stream(
             async with httpx.AsyncClient() as client:
                 async with client.stream(
                     "POST",
-                    f"{settings.ai_agent_url}/query/stream",
+                    f"{settings.ai_agent_url}/api/query/stream",
                     json=request.model_dump(),
                     headers=_auth_header(current_user),
                     timeout=QUERY_TIMEOUT,
@@ -97,7 +97,7 @@ async def proxy_query(
     try:
         async with httpx.AsyncClient() as client:
             resp = await client.post(
-                f"{settings.ai_agent_url}/query",
+                f"{settings.ai_agent_url}/api/query",
                 json=request.model_dump(),
                 headers=_auth_header(current_user),
                 timeout=QUERY_TIMEOUT,
@@ -122,7 +122,7 @@ async def proxy_report(
     try:
         async with httpx.AsyncClient() as client:
             resp = await client.post(
-                f"{settings.ai_agent_url}/report/generate",
+                f"{settings.ai_agent_url}/api/report/generate",
                 json=request.model_dump(),
                 headers=_auth_header(current_user),
                 timeout=REPORT_TIMEOUT,

@@ -45,7 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const login = useCallback(async (email: string, password: string) => {
-    const res = await fetch(`${BASE_URL}/auth/login`, {
+    const res = await fetch(`${BASE_URL}/api/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
@@ -59,7 +59,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [saveSession])
 
   const register = useCallback(async (email: string, password: string) => {
-    const res = await fetch(`${BASE_URL}/auth/register`, {
+    const res = await fetch(`${BASE_URL}/api/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
@@ -84,7 +84,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       userEmail = googlePayload.email ?? ''
     } catch { /* ignore — saveSession will use empty string */ }
 
-    const res = await fetch(`${BASE_URL}/auth/google/verify`, {
+    const res = await fetch(`${BASE_URL}/api/auth/google/verify`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ credential }),
@@ -98,7 +98,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [saveSession])
 
   const verifyEmail = useCallback(async (token: string) => {
-    const res = await fetch(`${BASE_URL}/auth/verify-email?token=${encodeURIComponent(token)}`, {
+    const res = await fetch(`${BASE_URL}/api/auth/verify-email?token=${encodeURIComponent(token)}`, {
       method: 'POST',
     })
     if (!res.ok) {
@@ -112,7 +112,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const resendVerification = useCallback(async (email: string) => {
-    const res = await fetch(`${BASE_URL}/auth/resend-verification`, {
+    const res = await fetch(`${BASE_URL}/api/auth/resend-verification`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email }),

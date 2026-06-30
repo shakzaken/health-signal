@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from agents.doctor_report import DoctorReportAgent
 from api.deps import get_current_user_id, get_doctor_report_agent
 
-router = APIRouter(prefix="/report", tags=["report"])
+router = APIRouter(prefix="/api/report", tags=["report"])
 
 
 class ReportRequest(BaseModel):

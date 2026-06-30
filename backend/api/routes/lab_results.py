@@ -9,7 +9,7 @@ from models.user import User
 from repositories.lab_result_repository import LabResultRepository
 from schemas.lab_result import LabMarkerResponse, LabResultResponse, MarkerHistoryResponse
 
-router = APIRouter(prefix="/lab-results", tags=["lab-results"])
+router = APIRouter(prefix="/api/lab-results", tags=["lab-results"])
 
 
 @router.get("", response_model=list[LabResultResponse])

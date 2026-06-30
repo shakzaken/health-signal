@@ -15,7 +15,7 @@ from schemas.document import DocumentResponse, DocumentUploadResponse
 from services.document_service import DocumentService
 
 logger = get_logger(__name__)
-router = APIRouter(prefix="/documents", tags=["documents"])
+router = APIRouter(prefix="/api/documents", tags=["documents"])
 
 
 @router.post("/upload", response_model=DocumentUploadResponse, status_code=202)
