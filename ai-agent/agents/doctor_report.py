@@ -98,7 +98,7 @@ class DoctorReportAgent:
 
     async def _fetch_abnormal_labs(self, period_days: int) -> str:
         """Fetch lab results and return a summary of abnormal markers."""
-        results = await self._get_json(f"{self._backend_url}/lab-results")
+        results = await self._get_json(f"{self._backend_url}/api/lab-results")
         if results is None:
             return "Could not fetch lab results."
         if not results:
@@ -137,7 +137,7 @@ class DoctorReportAgent:
         """Fetch recent symptom entries."""
         from_date = (date.today() - timedelta(days=period_days)).isoformat()
         entries = await self._get_json(
-            f"{self._backend_url}/symptom-entries", params={"from": from_date}
+            f"{self._backend_url}/api/symptom-entries", params={"from": from_date}
         )
         if entries is None:
             return "Could not fetch symptom data."
@@ -156,7 +156,7 @@ class DoctorReportAgent:
         """Fetch supplement entries from the period."""
         from_date = (date.today() - timedelta(days=period_days)).isoformat()
         entries = await self._get_json(
-            f"{self._backend_url}/supplement-entries", params={"from": from_date}
+            f"{self._backend_url}/api/supplement-entries", params={"from": from_date}
         )
         if entries is None:
             return "Could not fetch supplement data."

@@ -15,7 +15,7 @@ def make_fetch_timeline(backend_url: str, token: str):
         headers = {"Authorization": f"Bearer {token}"}
         async with httpx.AsyncClient() as client:
             response = await client.get(
-                f"{backend_url}/timeline",
+                f"{backend_url}/api/timeline",
                 headers=headers,
                 params={"from": from_date, "to": to_date},
                 timeout=10.0,

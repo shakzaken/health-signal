@@ -14,7 +14,7 @@ def make_fetch_symptoms_in_range(backend_url: str, token: str):
         headers = {"Authorization": f"Bearer {token}"}
         async with httpx.AsyncClient() as client:
             response = await client.get(
-                f"{backend_url}/symptom-entries",
+                f"{backend_url}/api/symptom-entries",
                 headers=headers,
                 params={"from": from_date, "to": to_date},
                 timeout=10.0,
