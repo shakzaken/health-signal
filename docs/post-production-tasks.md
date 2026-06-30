@@ -14,7 +14,8 @@
 | 4 | Admin panel | ✅ Done |
 | 5 | Answer quality (eval fixes) | 🔲 Not started |
 | 6 | Auth & Google OAuth testing (production) | 🔲 Not started |
-| 7 | PostgreSQL and Qdrant auth | 🔄 Local done, server pending |
+| 7 | PostgreSQL and Qdrant auth | ✅ Done |
+| 8 | Session expiry reload-loop fix | ✅ Done |
 
 ---
 
@@ -244,7 +245,7 @@
 
 ---
 
-## Phase 7 — PostgreSQL and Qdrant auth ✅ (local — server pending)
+## Phase 7 — PostgreSQL and Qdrant auth ✅
 
 **Why:** Both databases ran with no authentication. Postgres used `trust` mode (ignores passwords) and Qdrant had no API key.
 
@@ -286,12 +287,31 @@ docker compose up -d          # recreates everything fresh with auth enabled
 - [x] Registered a user, uploaded a document, ran a query — full pipeline works end-to-end
 - [x] Backend + ai-agent test suites — zero regressions vs. established baseline
 
-### Task 7.7 — Deploy to server (pending)
-- [ ] Generate **separate** `POSTGRES_PASSWORD` and `QDRANT_API_KEY` values for production (different from local dev values)
-- [ ] Add to `backend/.env`, `ai-agent/.env`, and root `.env` on the server
-- [ ] Push to `main` — CI/CD deploys the code changes
-- [ ] SSH in, run `docker compose down -v && docker compose build && docker compose up -d` to wipe and recreate with auth enabled (safe — no real users yet)
-- [ ] Re-run Task 7.6 verification steps against production
+### Task 7.7 — Deploy to server ✅
+- [x] Generated **separate** `POSTGRES_PASSWORD` and `QDRANT_API_KEY` values for production (different from local dev values)
+- [x] Added to `backend/.env`, `ai-agent/.env`, and root `.env` on the server
+- [x] Pushed to `main` — CI/CD deployed the code changes
+- [x] Wiped and recreated volumes on the server with auth enabled
+- [x] Verified Postgres auth — registered a new user and logged in successfully against `adminuser`-authenticated Postgres
+- [x] Verified Qdrant auth — uploaded a journal-style document (not stored in any Postgres table), asked a question only answerable via semantic search, confirmed via logs that the `search_documents` tool hit Qdrant and returned the correct answer
+- [x] Found and fixed a production session bug along the way — see "Session expiry reload-loop fix" below
+
+---
+
+## Phase 8 — Session expiry reload-loop fix ✅
+
+**Symptom:** Visiting `https://healthsignal.yakirzaken.com/` triggered a continuous page-refresh loop in browsers with an existing (stale/invalid) session. Worked fine in incognito (no localStorage).
+
+**Root cause:**
+- The 401-handling logic in `frontend/src/api/backend.ts` (duplicated across `request()` and `sendQueryStream()`, plus a third copy in `admin.ts`) only removed the `hs_token` key on session expiry — never `hs_email` or the active-session key, unlike the proper `logout()` function in `AuthContext`.
+- `App.tsx` calls `useChat(email ?? '')` **unconditionally**, before checking `isAuthenticated`. With a stale `email` still in localStorage, `useChat`'s data-fetch effect kept firing on every reload, regardless of whether the user was actually logged in.
+- Each 401 response triggered a hard `window.location.reload()` — fragile under concurrent requests and prone to repeating instead of cleanly settling on the login screen.
+
+**Fix:**
+- [x] Added `frontend/src/api/sessionEvents.ts` — a small pub/sub bridge so plain API modules (outside React) can request a logout without touching `localStorage` or `window.location` directly
+- [x] `backend.ts` and `admin.ts`: replaced manual `localStorage.removeItem` + `window.location.reload()` with `triggerSessionExpired()`
+- [x] `AuthContext.tsx`: registers its existing, already-correct `logout()` (clears token + email + active session, updates React state) as the session-expired handler — no full-page reload needed at all
+- [x] QA verified: seeded a stale invalid token + lingering email in localStorage, reloaded — app now settles cleanly on the login screen in one render, with all three localStorage keys (`hs_token`, `hs_email`, `hs_active_session_*`) correctly cleared
 
 ---
 

@@ -28,16 +28,33 @@ function loadActiveSession(userEmail: string): Session | null {
 }
 
 export function useChat(userEmail: string) {
-  const [messages, setMessages] = useState<Message[]>(() => loadActiveSession(userEmail)?.messages ?? [])
-  const [sessionId, setSessionId] = useState<string>(() => loadActiveSession(userEmail)?.id ?? crypto.randomUUID())
+  const [messages, setMessages] = useState<Message[]>([])
+  const [sessionId, setSessionId] = useState<string>(() => crypto.randomUUID())
   const [isLoading, setIsLoading] = useState(false)
-  const [sources, setSources] = useState<SourceChunk[]>(() => loadActiveSession(userEmail)?.sources ?? [])
+  const [sources, setSources] = useState<SourceChunk[]>([])
   const [error, setError] = useState<string | null>(null)
   const [sessions, setSessions] = useState<Session[]>([])
 
-  // Load session list from server on mount
+  // Reset all chat state whenever the active user changes (login/logout/account
+  // switch) — without this, switching accounts within the same SPA session
+  // leaves the previous user's messages visible in the chat pane, since this
+  // hook instance stays mounted across login/logout instead of remounting.
   useEffect(() => {
-    if (!userEmail) return
+    if (!userEmail) {
+      setMessages([])
+      setSources([])
+      setSessions([])
+      setSessionId(crypto.randomUUID())
+      setError(null)
+      return
+    }
+
+    const active = loadActiveSession(userEmail)
+    setMessages(active?.messages ?? [])
+    setSources(active?.sources ?? [])
+    setSessionId(active?.id ?? crypto.randomUUID())
+    setError(null)
+
     listConversations()
       .then((items) => {
         setSessions(items.map((item) => ({
