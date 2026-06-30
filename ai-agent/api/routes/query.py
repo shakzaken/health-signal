@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 from agents.supervisor import Supervisor
 from api.deps import get_current_user_id, get_supervisor
 
-router = APIRouter(prefix="/query", tags=["query"])
+router = APIRouter(prefix="/api/query", tags=["query"])
 
 
 class QueryRequest(BaseModel):

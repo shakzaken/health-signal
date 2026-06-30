@@ -10,7 +10,7 @@ from models.user import User
 from repositories.symptom_repository import SymptomRepository
 from schemas.symptom import SymptomEntryResponse
 
-router = APIRouter(prefix="/symptom-entries", tags=["symptoms"])
+router = APIRouter(prefix="/api/symptom-entries", tags=["symptoms"])
 
 
 @router.get("", response_model=list[SymptomEntryResponse])

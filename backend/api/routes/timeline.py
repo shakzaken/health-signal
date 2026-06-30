@@ -10,7 +10,7 @@ from models.user import User
 from schemas.timeline import TimelineEventResponse
 from services.timeline_service import TimelineService
 
-router = APIRouter(prefix="/timeline", tags=["timeline"])
+router = APIRouter(prefix="/api/timeline", tags=["timeline"])
 
 
 @router.get("", response_model=list[TimelineEventResponse])

@@ -44,7 +44,7 @@ def client_with_mock_supervisor():
 
 def test_query_returns_200_with_answer_and_sources(client_with_mock_supervisor):
     client, _ = client_with_mock_supervisor
-    resp = client.post("/query", json={"question": "What are my lab results?"})
+    resp = client.post("/api/query", json={"question": "What are my lab results?"})
     assert resp.status_code == 200
     data = resp.json()
     assert "answer" in data
@@ -55,14 +55,14 @@ def test_query_returns_200_with_answer_and_sources(client_with_mock_supervisor):
 
 def test_query_calls_supervisor_with_question(client_with_mock_supervisor):
     client, mock_supervisor = client_with_mock_supervisor
-    client.post("/query", json={"question": "What is my cholesterol?"})
+    client.post("/api/query", json={"question": "What is my cholesterol?"})
     mock_supervisor.run.assert_called_once()
     assert "cholesterol" in mock_supervisor.run.call_args.kwargs["question"].lower()
 
 
 def test_query_passes_document_type_filter(client_with_mock_supervisor):
     client, mock_supervisor = client_with_mock_supervisor
-    client.post("/query", json={
+    client.post("/api/query", json={
         "question": "Any lab results?",
         "document_type": "blood_test",
     })
@@ -72,19 +72,19 @@ def test_query_passes_document_type_filter(client_with_mock_supervisor):
 
 def test_query_document_type_is_optional(client_with_mock_supervisor):
     client, _ = client_with_mock_supervisor
-    resp = client.post("/query", json={"question": "Any results?"})
+    resp = client.post("/api/query", json={"question": "Any results?"})
     assert resp.status_code == 200
 
 
 def test_query_validates_missing_question():
     with TestClient(app, raise_server_exceptions=False) as client:
-        resp = client.post("/query", json={})
+        resp = client.post("/api/query", json={})
     assert resp.status_code == 422
 
 
 def test_query_source_schema_matches_expected_fields(client_with_mock_supervisor):
     client, _ = client_with_mock_supervisor
-    resp = client.post("/query", json={"question": "Results?"})
+    resp = client.post("/api/query", json={"question": "Results?"})
     source = resp.json()["sources"][0]
     assert "text" in source
     assert "document_id" in source

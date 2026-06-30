@@ -38,7 +38,7 @@ def client_with_mock_pipeline():
 
 def test_ingest_returns_200_on_success(client_with_mock_pipeline):
     client, _ = client_with_mock_pipeline
-    resp = client.post("/ingest", json={
+    resp = client.post("/api/ingest", json={
         "document_id": "doc-abc",
         "file_path": PDF_PATH,
         "document_type": "lab_report",
@@ -52,7 +52,7 @@ def test_ingest_returns_200_on_success(client_with_mock_pipeline):
 
 def test_ingest_calls_pipeline_with_correct_args(client_with_mock_pipeline):
     client, mock_pipeline = client_with_mock_pipeline
-    client.post("/ingest", json={
+    client.post("/api/ingest", json={
         "document_id": "doc-xyz",
         "file_path": "/some/path.pdf",
         "document_type": "blood_test",
@@ -70,7 +70,7 @@ def test_ingest_returns_error_field_on_failure():
     mock = make_pipeline_mock(success=False)
     app.dependency_overrides[get_ingestion_pipeline] = lambda: mock
     with TestClient(app, raise_server_exceptions=False) as client:
-        resp = client.post("/ingest", json={
+        resp = client.post("/api/ingest", json={
             "document_id": "doc-fail",
             "file_path": "/bad/path.pdf",
             "document_type": "lab_report",
@@ -87,7 +87,7 @@ def test_ingest_uses_filename_from_path_when_not_provided():
     mock = make_pipeline_mock()
     app.dependency_overrides[get_ingestion_pipeline] = lambda: mock
     with TestClient(app, raise_server_exceptions=False) as client:
-        client.post("/ingest", json={
+        client.post("/api/ingest", json={
             "document_id": "doc-noname",
             "file_path": "/uploads/myfile.pdf",
             "document_type": "lab_report",
@@ -99,5 +99,5 @@ def test_ingest_uses_filename_from_path_when_not_provided():
 
 def test_ingest_validates_required_fields():
     with TestClient(app, raise_server_exceptions=False) as client:
-        resp = client.post("/ingest", json={"document_id": "only-id"})
+        resp = client.post("/api/ingest", json={"document_id": "only-id"})
     assert resp.status_code == 422

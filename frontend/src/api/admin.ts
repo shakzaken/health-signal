@@ -42,20 +42,20 @@ export interface AdminUser {
 }
 
 export async function fetchAdminStats(): Promise<AdminStats> {
-  return adminRequest<AdminStats>('/admin/stats')
+  return adminRequest<AdminStats>('/api/admin/stats')
 }
 
 export async function fetchAdminUsers(): Promise<AdminUser[]> {
-  return adminRequest<AdminUser[]>('/admin/users')
+  return adminRequest<AdminUser[]>('/api/admin/users')
 }
 
 export async function createAdminUser(email: string, password: string, isTestUser: boolean): Promise<AdminUser> {
-  return adminRequest<AdminUser>('/admin/users', {
+  return adminRequest<AdminUser>('/api/admin/users', {
     method: 'POST',
     body: JSON.stringify({ email, password, is_test_user: isTestUser }),
   })
 }
 
 export async function verifyAdminUser(userId: string): Promise<void> {
-  await adminRequest(`/admin/users/${userId}/verify`, { method: 'POST' })
+  await adminRequest(`/api/admin/users/${userId}/verify`, { method: 'POST' })
 }

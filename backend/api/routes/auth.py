@@ -15,7 +15,7 @@ from schemas.auth import GoogleVerifyRequest, LoginRequest, RegisterRequest, Res
 from services.email_service import EmailService
 
 logger = get_logger(__name__)
-router = APIRouter(prefix="/auth", tags=["auth"])
+router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 TOKEN_EXPIRY_HOURS = 24
 
