@@ -18,7 +18,7 @@ if settings.sentry_dsn:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logger.info(f"Starting backend — database={settings.database_url} ai_agent={settings.ai_agent_url}")
+    logger.info(f"Starting backend — database={settings.postgres_host}:{settings.postgres_port}/{settings.postgres_db} ai_agent={settings.ai_agent_url}")
     # Schema is managed exclusively by Alembic migrations (`make migrate`).
     # create_db_and_tables() is intentionally NOT called here.
     yield

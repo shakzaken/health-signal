@@ -144,7 +144,7 @@ def delete_existing_documents(backend: str, token: str) -> None:
     for sql in sql_commands:
         subprocess.run(
             ["docker", "compose", "exec", "-T", "postgres",
-             "psql", "-U", "yakir", "-d", "healthsignal", "-c", sql],
+             "psql", "-U", "adminuser", "-d", "healthsignal", "-c", sql],
             cwd=EVAL_DIR.parent,
             capture_output=True,
         )

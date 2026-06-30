@@ -11,10 +11,10 @@
 | 1 | Backups | ✅ Done |
 | 2 | Monitoring | ✅ Done |
 | 3 | Auth improvements | ✅ Done |
-| 4 | Admin panel | 🔲 Not started |
+| 4 | Admin panel | ✅ Done |
 | 5 | Answer quality (eval fixes) | 🔲 Not started |
 | 6 | Auth & Google OAuth testing (production) | 🔲 Not started |
-| 7 | PostgreSQL and Qdrant auth | 🔲 Not started |
+| 7 | PostgreSQL and Qdrant auth | 🔄 Local done, server pending |
 
 ---
 
@@ -138,40 +138,66 @@
 
 ---
 
-## Phase 4 — Admin panel
+## Phase 4 — Admin panel ✅
 
-### Task 5.1 — Usage tracking (backend)
+### Task 5.1 — Usage tracking (backend) ✅
 
 **Database**
-- [ ] Add `is_test_user` boolean column to `users` table (default false)
-- [ ] Add `usage_events` table: `id`, `user_id`, `event_type` (query / ingestion), `created_at`
-- [ ] Write Alembic migration
+- [x] Add `is_test_user` boolean column to `users` table (default false)
+- [x] Add `last_login_at` column to `users` table (nullable) — set on every successful login (password + Google)
+- [x] Add `usage_events` table: `id`, `user_id`, `event_type` (query / ingestion), `created_at`
+- [x] Write Alembic migration (`e6f7a8b9c0d1_add_usage_tracking.py`)
 
 **Backend — event recording**
-- [ ] Record `ingestion` event when a document is successfully ingested
-- [ ] Record `query` event when a chat message is sent
+- [x] Record `ingestion` event when a document is successfully ingested (`DocumentService._trigger_ingestion`)
+- [x] Record `query` event when a chat message is sent (both `/api/ai/query` and `/api/ai/query/stream`)
 
 **Backend — admin API endpoints** (all require `current_user.email == ADMIN_EMAIL`)
-- [ ] `GET /admin/stats` — summary cards: total users, total queries, total ingestions, active users (7d, 30d)
-- [ ] `GET /admin/users` — list of all real users (exclude `is_test_user=true`) with per-user stats
-- [ ] `POST /admin/users` — create user (email, password, `is_test_user` flag) — created as verified
-- [ ] `POST /admin/users/{id}/verify` — manually verify an unverified user
-- [ ] Add `ADMIN_EMAIL` to `backend/.env` on server
+- [x] `GET /api/admin/stats` — summary cards: total users, total queries, total ingestions, active users (7d, 30d)
+- [x] `GET /api/admin/users` — list of all real users (exclude `is_test_user=true`) with per-user stats
+- [x] `POST /api/admin/users` — create user (email, password, `is_test_user` flag) — created as verified
+- [x] `POST /api/admin/users/{id}/verify` — manually verify an unverified user
+- [x] Add `ADMIN_EMAIL` to `backend/.env` on server
+- [x] Admin routes use `/api/admin` prefix (not bare `/admin`) to avoid colliding with the frontend's `/admin` page route — see API prefix migration note below
 
-### Task 5.2 — Admin frontend
+### Task 5.2 — Admin frontend ✅
 
-- [ ] Add protected `/admin` route — redirects to login if not authenticated as admin
-- [ ] Summary cards: total users, total queries, total ingestions, active users (7d / 30d)
-- [ ] Users table: email, registration date, last login, documents ingested, queries sent, verified status
-- [ ] Create user form: email + password + "Test / automation user" checkbox
-- [ ] Verify user button next to unverified users in the table
+- [x] Add protected `/admin` route — shows "Access denied" if not authenticated as admin (backend returns 403)
+- [x] Summary cards: total users, total queries, total ingestions, active users (7d / 30d)
+- [x] Users table: email, registration date, last login, documents ingested, queries sent, verified status
+- [x] Create user form: email + password + "Test / automation user" checkbox
+- [x] Verify user button next to unverified users in the table
+- [x] QA tested locally end-to-end: ingestion + query events recorded correctly, verify button works, test users correctly excluded from view but created in DB
 
-### Task 5.3 — Cloudflare Access (Zero Trust)
+### Task 5.3 — Cloudflare Access (Zero Trust) ✅
 
-- [ ] Go to Cloudflare dashboard → Zero Trust → Access → Applications
-- [ ] Create application: protect `healthsignal.yakirzaken.com/admin*`
-- [ ] Set policy: allow only `shakzaken@gmail.com` via Google login
-- [ ] Verify `/admin` is blocked for all other users
+- [x] Go to Cloudflare dashboard → Zero Trust → Access → Applications
+- [x] Create application: protect `healthsignal.yakirzaken.com/admin*` AND `healthsignal.yakirzaken.com/api/admin*` (both needed — page and API are separate paths)
+- [x] Set policy: allow only `shakzaken@gmail.com` via Google login
+- [x] Free tier — well under the 50-user Zero Trust limit
+- [x] Verified backend/ai-agent/qdrant are not directly reachable from the internet (only nginx publishes ports 80/443) — Cloudflare Access has no bypass route
+
+### Task 5.4 — API route prefix migration ✅
+
+**Why:** The admin frontend page (`/admin`) and the admin backend API (originally also `/admin/*`) collided — nginx routed `/admin/stats` to the SPA instead of the backend. Fixed by moving **all** backend API routes under `/api/*` for both `backend` and `ai-agent` services, and simplifying nginx to a single `location /api/`.
+
+- [x] Backend: all 9 routers (`auth`, `ai`, `documents`, `conversations`, `lab-results`, `timeline`, `supplement-entries`, `symptom-entries`, `admin`, `health`) now under `/api/*`
+- [x] ai-agent: all 4 routers (`query`, `ingest`, `report`, `health`) now under `/api/*`
+- [x] nginx.conf simplified from an enumerated regex to `location /api/` — no more manual updates needed per new route
+- [x] Frontend (`AuthContext.tsx`, `backend.ts`, `admin.ts`) updated to call `/api/*`
+- [x] Backend → ai-agent internal calls updated (`ai_agent.py` proxy, `document_service.py`)
+- [x] **Found and fixed a production-breaking bug**: ai-agent → backend internal calls (conversation memory, lab/timeline/symptom/supplement tools) still used old un-prefixed paths — caused silent 404s in production, no Sentry alert. Fixed all 12 call sites across 6 files.
+- [x] Backend + ai-agent test suites confirmed zero regressions (same pre-existing failure counts before/after)
+
+### Task 5.5 — Silent error handling audit ✅
+
+**Why:** The bug above was invisible in Sentry because failures were caught and logged at `warning` level. Sentry's default logging integration only auto-captures `error`-level logs as events.
+
+- [x] `ai-agent/tools/symptom_extractor.py`, `lab_extractor.py`, `supplement_extractor.py` — were silently swallowing extraction failures with zero logging; added `logger.error`
+- [x] `ai-agent/agents/supervisor.py` — classification failures silently fell back to `rag` route with no log; added `logger.error`
+- [x] `ai-agent/agents/conversation_memory.py` (3 sites), `doctor_report.py`, `graph_factory.py`, `rag/query_chain.py` — bumped `logger.warning` → `logger.error` so internal API failures and tool errors now surface in Sentry automatically
+- [x] Confirmed `ingestion/pipeline.py`, `document_classifier.py`, and `backend/services/document_service.py` already used `logger.error`/`.exception` correctly — no change needed
+- [x] QA verified: ingested 4 documents (2 blood tests, symptoms, supplements) as a fresh user, ran 6 different query types (trend analysis, symptom summary, supplement status, timeline, streaming), all correct with zero errors in logs
 
 ---
 
@@ -218,41 +244,54 @@
 
 ---
 
-## Phase 7 — PostgreSQL and Qdrant auth
+## Phase 7 — PostgreSQL and Qdrant auth ✅ (local — server pending)
 
-**Why:** Both databases currently run with no authentication. Postgres uses `trust` mode (ignores passwords) and Qdrant has no API key. This should be tightened before real users are onboarded.
+**Why:** Both databases ran with no authentication. Postgres used `trust` mode (ignores passwords) and Qdrant had no API key.
 
-**Safe to do now** — no real users yet, so we can wipe and recreate all volumes cleanly.
+### Task 7.1 — PostgreSQL: update docker-compose.yml ✅
+- [x] Add `POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}` to the postgres service environment
+- [x] Remove `POSTGRES_HOST_AUTH_METHOD: trust`
+- [x] Renamed default Postgres user from `yakir` to `adminuser` (`backend/core/config.py`, `ai-agent/core/config.py`, `docker-compose.yml`, `eval/setup_and_run.py`, `backend/alembic.ini`)
 
-### Task 7.1 — PostgreSQL: update docker-compose.yml
-- [ ] Add `POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}` to the postgres service environment
-- [ ] Remove `POSTGRES_HOST_AUTH_METHOD: trust`
+### Task 7.2 — PostgreSQL: refactored to individual env vars (not a single DATABASE_URL) ✅
+- [x] `backend/core/config.py` and `ai-agent/core/config.py`: replaced required `database_url: str` field with `postgres_host` / `postgres_port` / `postgres_user` / `postgres_password` / `postgres_db` (only `postgres_password` is required, others default to local-friendly values) plus a computed `database_url` property
+- [x] `docker-compose.yml`: `migrate`/`backend`/`ai-agent` services now override `POSTGRES_HOST` + `POSTGRES_PASSWORD` instead of a full `DATABASE_URL` string
+- [x] `backend/alembic/env.py`: now imports `settings.database_url` directly instead of reading a raw `DATABASE_URL` env var
+- [x] Fixed a password leak — `backend/main.py` startup log used to print the full `database_url` (including password); now logs only host/port/db name
+- [x] Add `POSTGRES_PASSWORD=<your-password>` to `backend/.env`, `ai-agent/.env`, and root `.env` (different values for dev vs. prod)
 
-### Task 7.2 — PostgreSQL: update env files
-- [ ] Add `POSTGRES_PASSWORD=<your-password>` to `backend/.env`
-- [ ] Add `POSTGRES_PASSWORD=<your-password>` to `ai-agent/.env`
-- [ ] Verify `DATABASE_URL` in both `.env` files already has the correct matching password
+### Task 7.3 — Qdrant: update docker-compose.yml ✅
+- [x] Add `QDRANT__SERVICE__API_KEY: ${QDRANT_API_KEY}` to the qdrant service environment
+- [x] Pass `QDRANT_API_KEY` through to the `ai-agent` service environment too
 
-### Task 7.3 — Qdrant: update docker-compose.yml
-- [ ] Add `QDRANT__SERVICE__API_KEY: ${QDRANT_API_KEY}` to the qdrant service environment
+### Task 7.4 — Qdrant: update ai-agent code ✅
+- [x] Add `qdrant_api_key: str = ""` to `ai-agent/core/config.py`
+- [x] Pass `api_key=settings.qdrant_api_key` to `QdrantClient` in `ai-agent/rag/qdrant_client.py`
+- [x] **Found and fixed a bug**: `QdrantClient` defaults to `https=True` whenever an `api_key` is set (assumes Qdrant Cloud) — broke ai-agent startup with `[SSL: WRONG_VERSION_NUMBER]` against our self-hosted, non-TLS Qdrant. Fixed with explicit `https=False`.
+- [x] Add `QDRANT_API_KEY=<your-key>` to `ai-agent/.env` and root `.env`
 
-### Task 7.4 — Qdrant: update ai-agent code
-- [ ] Add `qdrant_api_key: str = ""` to `ai-agent/core/config.py`
-- [ ] Pass `api_key=settings.qdrant_api_key` to `QdrantClient` in `ai-agent/rag/qdrant_client.py`
-- [ ] Add `QDRANT_API_KEY=<your-key>` to `ai-agent/.env`
-
-### Task 7.5 — Wipe and recreate on server
+### Task 7.5 — Wipe and recreate (local) ✅
 ```bash
-cd /opt/health-signal
 docker compose down -v        # stops containers AND deletes all volumes (postgres + qdrant + uploads)
+docker compose build
 docker compose up -d          # recreates everything fresh with auth enabled
 ```
+- [x] Ran locally — confirmed working
 
-### Task 7.6 — Verify
-- [ ] `docker compose logs migrate` — migrations ran successfully
-- [ ] `docker compose logs backend` — no database connection errors
-- [ ] `docker compose logs ai-agent` — no Qdrant connection errors
-- [ ] Upload a document and run a query — end-to-end works
+### Task 7.6 — Verify ✅ (local)
+- [x] `docker compose logs migrate` — all 8 migrations ran successfully against `adminuser`-authenticated Postgres
+- [x] `docker compose logs backend` — no database connection errors
+- [x] `docker compose logs ai-agent` — no Qdrant connection errors after the `https=False` fix
+- [x] Qdrant correctly rejects unauthenticated requests (`401 Must provide an API key`)
+- [x] Registered a user, uploaded a document, ran a query — full pipeline works end-to-end
+- [x] Backend + ai-agent test suites — zero regressions vs. established baseline
+
+### Task 7.7 — Deploy to server (pending)
+- [ ] Generate **separate** `POSTGRES_PASSWORD` and `QDRANT_API_KEY` values for production (different from local dev values)
+- [ ] Add to `backend/.env`, `ai-agent/.env`, and root `.env` on the server
+- [ ] Push to `main` — CI/CD deploys the code changes
+- [ ] SSH in, run `docker compose down -v && docker compose build && docker compose up -d` to wipe and recreate with auth enabled (safe — no real users yet)
+- [ ] Re-run Task 7.6 verification steps against production
 
 ---
 
