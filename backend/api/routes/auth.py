@@ -132,6 +132,7 @@ async def login(
             detail="Please verify your email before logging in.",
         )
 
+    await repo.set_last_login(user)
     logger.info(f"User logged in — user_id={user.id}")
     token = create_access_token(str(user.id))
     return TokenResponse(access_token=token)
@@ -171,6 +172,7 @@ async def google_verify(
             user = await repo.create_google_user(email=email, provider_user_id=google_user_id)
             logger.info(f"New user via Google — user_id={user.id} email={email}")
 
+    await repo.set_last_login(user)
     logger.info(f"User logged in via Google — user_id={user.id}")
     token = create_access_token(str(user.id))
     return TokenResponse(access_token=token)

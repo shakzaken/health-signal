@@ -21,3 +21,5 @@ class User(Base):
     is_verified: Mapped[bool] = mapped_column(default=False)
     verification_token: Mapped[Optional[str]] = mapped_column(default=None, nullable=True)
     verification_token_expires_at: Mapped[Optional[datetime]] = mapped_column(default=None, nullable=True)
+    is_test_user: Mapped[bool] = mapped_column(default=False)
+    last_login_at: Mapped[Optional[datetime]] = mapped_column(default=None, nullable=True)

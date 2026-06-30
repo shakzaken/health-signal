@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from sqlalchemy import select
@@ -80,3 +80,34 @@ class UserRepository:
         user.verification_token = token
         user.verification_token_expires_at = expires_at
         await self.session.commit()
+
+    async def set_last_login(self, user: User) -> None:
+        user.last_login_at = datetime.now(timezone.utc).replace(tzinfo=None)
+        await self.session.commit()
+
+    async def list_all(self, exclude_test_users: bool = True) -> list[User]:
+        query = select(User).order_by(User.created_at.desc())
+        if exclude_test_users:
+            query = query.where(User.is_test_user.is_(False))
+        result = await self.session.execute(query)
+        return list(result.scalars().all())
+
+    async def count_all(self, exclude_test_users: bool = True) -> int:
+        from sqlalchemy import func
+        query = select(func.count()).select_from(User)
+        if exclude_test_users:
+            query = query.where(User.is_test_user.is_(False))
+        result = await self.session.execute(query)
+        return result.scalar_one()
+
+    async def create_admin_user(self, email: str, hashed_password: str, is_test_user: bool) -> User:
+        user = User(
+            email=email,
+            hashed_password=hashed_password,
+            is_verified=True,
+            is_test_user=is_test_user,
+        )
+        self.session.add(user)
+        await self.session.commit()
+        await self.session.refresh(user)
+        return user

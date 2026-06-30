@@ -8,11 +8,13 @@
 
 | Phase | Description | Status |
 |-------|-------------|--------|
-| 1 | Backups | 🔲 Not started |
+| 1 | Backups | ✅ Done |
 | 2 | Monitoring | ✅ Done |
-| 3 | Auth improvements | 🔄 In progress |
+| 3 | Auth improvements | ✅ Done |
 | 4 | Admin panel | 🔲 Not started |
 | 5 | Answer quality (eval fixes) | 🔲 Not started |
+| 6 | Auth & Google OAuth testing (production) | 🔲 Not started |
+| 7 | PostgreSQL and Qdrant auth | 🔲 Not started |
 
 ---
 
@@ -101,28 +103,38 @@
 - [x] Handle `/verify-email?token=...` route — `VerifyEmailPage.tsx`
 - [x] Show "Resend verification email" link on login if account is unverified
 
-### Task 4.3 — Google OAuth
+### Task 4.3 — Google OAuth ✅
 
 **Google Cloud Console**
-- [ ] Create a project in Google Cloud Console
-- [ ] Enable Google Identity API
-- [ ] Create OAuth 2.0 credentials — set authorized redirect URI to `https://healthsignal.yakirzaken.com/auth/google/callback`
-- [ ] Note `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`
+- [x] Create a project in Google Cloud Console
+- [x] Create OAuth 2.0 credentials (Web application, popup flow — no redirect URI needed)
+- [x] Add authorized JavaScript origins: `https://healthsignal.yakirzaken.com` and `http://localhost:5173`
+- [x] Note `GOOGLE_CLIENT_ID`
 
 **Database**
-- [ ] Add columns to `users` table: `provider` (str, nullable), `provider_user_id` (str, nullable)
-- [ ] Write Alembic migration
-- [ ] `password_hash` becomes nullable (Google users have no password)
+- [x] Add columns to `users` table: `provider` (str, nullable), `provider_user_id` (str, nullable)
+- [x] Write Alembic migration (`d5e6f7a8b9c0`)
+- [x] `hashed_password` made nullable (Google users have no password)
 
 **Backend**
-- [ ] Add `GET /auth/google` — redirects user to Google OAuth consent screen
-- [ ] Add `GET /auth/google/callback` — exchanges code for user info, finds or creates user, returns JWT
-- [ ] Add `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` to `backend/.env` on server
-- [ ] Google users are created as already verified (no email confirmation needed)
+- [x] Add `google-auth` to `backend/pyproject.toml`
+- [x] Add `POST /auth/google/verify` — verifies Google ID token, finds or creates user, returns JWT
+- [x] Existing email accounts are linked to Google on first Google login
+- [x] Login endpoint guards against Google-only users trying to sign in with password
+- [x] Add `GOOGLE_CLIENT_ID` to `backend/core/config.py` and `backend/.env` on server
 
 **Frontend**
-- [ ] Add "Continue with Google" button to login and register pages
-- [ ] Handle redirect flow (navigate to `/auth/google`, handle return with token)
+- [x] Add `@react-oauth/google` to `frontend/package.json`
+- [x] Wrap app with `GoogleOAuthProvider` in `main.tsx`
+- [x] Add `googleLogin()` to `AuthContext`
+- [x] Add "Continue with Google" button with divider to login page
+- [x] Add `VITE_GOOGLE_CLIENT_ID` to `frontend/Dockerfile` and `docker-compose.yml`
+- [x] CI sources `frontend/.env` before build so `VITE_GOOGLE_CLIENT_ID` is baked into the bundle
+- [x] Add `VITE_GOOGLE_CLIENT_ID` to `frontend/.env` on server
+
+**Deploy**
+- [ ] Copy updated `backend/.env` and `frontend/.env` to server
+- [ ] Push to `main` — CI/CD deploys and tests Google login on production
 
 ---
 
@@ -180,6 +192,67 @@
 - [ ] Fix `CLASSIFY_PROMPT` in `ai-agent/agents/supervisor.py`
 - [ ] Re-run test 002 — target 21/21
 - [ ] Re-run test 001 — confirm no regressions (target 20/20)
+
+---
+
+## Phase 6 — Auth & Google OAuth testing (production)
+
+### Task 6.1 — Password rules
+- [ ] Register with password shorter than 8 chars → error: "Password must be at least 8 characters"
+- [ ] Register with no uppercase → error: "Password must contain at least one uppercase letter"
+- [ ] Register with no number → error: "Password must contain at least one number"
+- [ ] Register with valid password (e.g. `Test1234`) → succeeds
+
+### Task 6.2 — Email verification
+- [ ] Register new user → "Check your email" screen appears
+- [ ] Check spam folder note is visible
+- [ ] Click verification link from email → redirected to app and logged in
+- [ ] Try to login before verifying → 403 with clear message
+- [ ] "Resend verification email" link works
+
+### Task 6.3 — Google OAuth
+- [ ] Click "Continue with Google" → Google account picker appears
+- [ ] Select account → logged into app with correct email shown
+- [ ] Log out → log back in with Google → works without re-consent
+- [ ] Register a new email/password account, then log in with Google using same email → accounts linked, same user
+
+---
+
+## Phase 7 — PostgreSQL and Qdrant auth
+
+**Why:** Both databases currently run with no authentication. Postgres uses `trust` mode (ignores passwords) and Qdrant has no API key. This should be tightened before real users are onboarded.
+
+**Safe to do now** — no real users yet, so we can wipe and recreate all volumes cleanly.
+
+### Task 7.1 — PostgreSQL: update docker-compose.yml
+- [ ] Add `POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}` to the postgres service environment
+- [ ] Remove `POSTGRES_HOST_AUTH_METHOD: trust`
+
+### Task 7.2 — PostgreSQL: update env files
+- [ ] Add `POSTGRES_PASSWORD=<your-password>` to `backend/.env`
+- [ ] Add `POSTGRES_PASSWORD=<your-password>` to `ai-agent/.env`
+- [ ] Verify `DATABASE_URL` in both `.env` files already has the correct matching password
+
+### Task 7.3 — Qdrant: update docker-compose.yml
+- [ ] Add `QDRANT__SERVICE__API_KEY: ${QDRANT_API_KEY}` to the qdrant service environment
+
+### Task 7.4 — Qdrant: update ai-agent code
+- [ ] Add `qdrant_api_key: str = ""` to `ai-agent/core/config.py`
+- [ ] Pass `api_key=settings.qdrant_api_key` to `QdrantClient` in `ai-agent/rag/qdrant_client.py`
+- [ ] Add `QDRANT_API_KEY=<your-key>` to `ai-agent/.env`
+
+### Task 7.5 — Wipe and recreate on server
+```bash
+cd /opt/health-signal
+docker compose down -v        # stops containers AND deletes all volumes (postgres + qdrant + uploads)
+docker compose up -d          # recreates everything fresh with auth enabled
+```
+
+### Task 7.6 — Verify
+- [ ] `docker compose logs migrate` — migrations ran successfully
+- [ ] `docker compose logs backend` — no database connection errors
+- [ ] `docker compose logs ai-agent` — no Qdrant connection errors
+- [ ] Upload a document and run a query — end-to-end works
 
 ---
 

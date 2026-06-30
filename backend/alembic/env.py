@@ -17,6 +17,8 @@ import models.supplement  # noqa: F401, E402
 import models.symptom  # noqa: F401, E402
 import models.timeline  # noqa: F401, E402
 import models.conversation  # noqa: F401, E402
+import models.user  # noqa: F401, E402
+import models.usage_event  # noqa: F401, E402
 
 config = context.config
 

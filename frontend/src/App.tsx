@@ -6,6 +6,7 @@ import ChatPage from './pages/ChatPage'
 import ReportPage from './pages/ReportPage'
 import LoginPage from './pages/LoginPage'
 import VerifyEmailPage from './pages/VerifyEmailPage'
+import AdminPage from './pages/AdminPage'
 import { useChat } from './hooks/useChat'
 import { useAuth } from './context/AuthContext'
 
@@ -22,6 +23,10 @@ function AppShell() {
 
   if (!isAuthenticated) {
     return <LoginPage />
+  }
+
+  if (window.location.pathname === '/admin') {
+    return <AdminPage />
   }
 
   return (

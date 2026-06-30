@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sentry_sdk.integrations.fastapi import FastApiIntegration
 
-from api.routes import ai_agent, auth, conversations, documents, health, lab_results, supplements, symptoms, timeline
+from api.routes import admin, ai_agent, auth, conversations, documents, health, lab_results, supplements, symptoms, timeline
 from core.config import settings
 from core.logger import get_logger
 
@@ -49,6 +49,7 @@ app.include_router(symptoms.router)
 app.include_router(supplements.router)
 app.include_router(timeline.router)
 app.include_router(conversations.router)
+app.include_router(admin.router)
 
 
 @app.middleware("http")
