@@ -13,7 +13,7 @@
 | 3 | Auth improvements | ✅ Done |
 | 4 | Admin panel | ✅ Done |
 | 5 | Answer quality (eval fixes) | 🔲 Not started |
-| 6 | Auth & Google OAuth testing (production) | 🔲 Not started |
+| 6 | Auth & Google OAuth testing (production) | 🔄 Google OAuth done, password/email verification pending |
 | 7 | PostgreSQL and Qdrant auth | ✅ Done |
 | 8 | Session expiry reload-loop fix | ✅ Done |
 
@@ -237,11 +237,12 @@
 - [ ] Try to login before verifying → 403 with clear message
 - [ ] "Resend verification email" link works
 
-### Task 6.3 — Google OAuth
-- [ ] Click "Continue with Google" → Google account picker appears
-- [ ] Select account → logged into app with correct email shown
-- [ ] Log out → log back in with Google → works without re-consent
-- [ ] Register a new email/password account, then log in with Google using same email → accounts linked, same user
+### Task 6.3 — Google OAuth ✅
+- [x] Click "Continue with Google" → Google account picker appears
+- [x] Select account → logged into app with correct email shown
+- [x] Log out → log back in with Google → works without re-consent
+- [x] Logged in with two different Google accounts in the same browser session → found and fixed a cross-account chat leak bug (see Phase 8 — `useChat` state wasn't resetting on account switch)
+- [ ] Register a new email/password account, then log in with Google using same email → accounts linked, same user (not yet tested)
 
 ---
 

@@ -11,7 +11,8 @@ from models.usage_event import UsageEventType
 from models.user import User
 from repositories.user_repository import UserRepository
 from repositories.usage_event_repository import UsageEventRepository, days_ago
-from schemas.admin import AdminCreateUserRequest, AdminStatsResponse, AdminUserResponse
+from schemas.admin import AdminCreateUserRequest, AdminDeleteUserRequest, AdminStatsResponse, AdminUserResponse
+from services.user_deletion_service import UserDeletionService
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/api/admin", tags=["admin"])
@@ -99,3 +100,31 @@ async def verify_user(
     await user_repo.verify(user)
     logger.info(f"Admin verified user — user_id={user.id}")
     return {"message": "User verified"}
+
+
+@router.delete("/users/{user_id}")
+async def delete_user(
+    user_id: uuid.UUID,
+    body: AdminDeleteUserRequest,
+    session: AsyncSession = Depends(get_session),
+    admin: User = Depends(get_current_admin_user),
+):
+    """Permanently delete a user and all their data. Irreversible.
+
+    Requires the caller to type the exact email of the user being deleted —
+    an AWS-style confirmation step to prevent accidental deletion.
+    """
+    user_repo = UserRepository(session)
+    user = await user_repo.get_by_id(user_id)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    if body.confirm_email != user.email:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Confirmation email does not match — deletion cancelled.",
+        )
+
+    logger.warning(f"Admin deleting user — admin={admin.email} target_user_id={user.id} target_email={user.email}")
+    await UserDeletionService(session).delete(user)
+    return {"message": f"User {user.email} permanently deleted"}
