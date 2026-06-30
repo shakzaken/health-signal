@@ -1,3 +1,5 @@
+import { triggerSessionExpired } from './sessionEvents'
+
 const BASE_URL = import.meta.env.VITE_BACKEND_URL ?? 'http://localhost:8000'
 const TOKEN_KEY = 'hs_token'
 
@@ -15,6 +17,10 @@ async function adminRequest<T>(path: string, init?: RequestInit): Promise<T> {
       ...(init?.headers ?? {}),
     },
   })
+  if (res.status === 401) {
+    triggerSessionExpired()
+    throw new Error('Session expired')
+  }
   if (!res.ok) {
     const text = await res.text().catch(() => res.statusText)
     throw new Error(`${res.status}: ${text}`)

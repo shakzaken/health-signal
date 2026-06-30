@@ -1,4 +1,5 @@
-import { createContext, useContext, useState, useCallback, type ReactNode } from 'react'
+import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react'
+import { registerSessionExpiredHandler } from '../api/sessionEvents'
 
 function extractDetail(data: Record<string, unknown>, fallback: string): string {
   const detail = data.detail
@@ -134,6 +135,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setToken(null)
     setEmail(null)
   }, [])
+
+  // Let plain API modules (outside React) trigger a clean logout on 401,
+  // instead of each one doing its own localStorage cleanup + page reload.
+  useEffect(() => {
+    registerSessionExpiredHandler(logout)
+  }, [logout])
 
   return (
     <AuthContext.Provider value={{ token, email, isAuthenticated: !!token, login, register, googleLogin, verifyEmail, resendVerification, logout }}>
