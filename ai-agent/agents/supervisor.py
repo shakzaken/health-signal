@@ -151,7 +151,8 @@ class Supervisor:
         try:
             decision: RouteDecision = await classifier.ainvoke(messages, config=config)
             route = decision.route
-        except Exception:
+        except Exception as e:
+            logger.error(f"Supervisor classification failed, falling back to rag — {e}")
             route = "rag"
         logger.info(f"Supervisor classified question → route={route}")
         return {**state, "route": route}

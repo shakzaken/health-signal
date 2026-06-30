@@ -63,7 +63,7 @@ def create_tool_calling_graph(
                 try:
                     content = await tool_fn.ainvoke(tool_call["args"], config=config)
                 except Exception as e:
-                    logger.warning(f"Tool error — tool={tool_call['name']} error={e}")
+                    logger.error(f"Tool error — tool={tool_call['name']} error={e}")
                     content = f"Tool error: {e}"
             return ToolMessage(content=str(content), tool_call_id=tool_call["id"])
 

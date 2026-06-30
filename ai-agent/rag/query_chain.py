@@ -102,7 +102,7 @@ class QueryChain:
                 )
                 chunks = self._merge_chunks(primary_chunks, secondary_chunks, top_k=5)
             except Exception as e:
-                logger.warning(f"Translation for dual retrieval failed — {e}")
+                logger.error(f"Translation for dual retrieval failed — {e}")
                 chunks = primary_chunks
         else:
             chunks = primary_chunks

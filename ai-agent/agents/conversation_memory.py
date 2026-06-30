@@ -47,7 +47,7 @@ class ConversationMemory:
             ]
             return summary, recent_history
         except Exception as e:
-            logger.warning(f"Could not load conversation history — session={session_id} error={e}")
+            logger.error(f"Could not load conversation history — session={session_id} error={e}")
             return "", []
 
     async def save_turn(
@@ -77,7 +77,7 @@ class ConversationMemory:
                 count_resp.raise_for_status()
                 total = count_resp.json().get("total_count", 0)
         except Exception as e:
-            logger.warning(f"Could not save conversation turn — session={session_id} error={e}")
+            logger.error(f"Could not save conversation turn — session={session_id} error={e}")
         return total
 
     async def maybe_summarize(
@@ -124,4 +124,4 @@ class ConversationMemory:
                 )
             logger.info(f"Conversation summarized — session={session_id}")
         except Exception as e:
-            logger.warning(f"Could not summarize conversation — session={session_id} error={e}")
+            logger.error(f"Could not summarize conversation — session={session_id} error={e}")
