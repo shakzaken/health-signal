@@ -1,4 +1,5 @@
 import type { DocumentResponse, SourceChunk } from '../types'
+import { triggerSessionExpired } from './sessionEvents'
 
 const BASE_URL = import.meta.env.VITE_BACKEND_URL ?? 'http://localhost:8000'
 const TOKEN_KEY = 'hs_token'
@@ -21,8 +22,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     },
   })
   if (res.status === 401) {
-    localStorage.removeItem(TOKEN_KEY)
-    window.location.reload()
+    triggerSessionExpired()
     throw new Error('Session expired')
   }
   if (!res.ok) {
@@ -106,8 +106,7 @@ export async function* sendQueryStream(
   })
 
   if (res.status === 401) {
-    localStorage.removeItem(TOKEN_KEY)
-    window.location.reload()
+    triggerSessionExpired()
     throw new Error('Session expired')
   }
   if (!res.ok) {
