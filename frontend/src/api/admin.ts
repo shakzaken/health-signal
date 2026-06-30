@@ -65,3 +65,10 @@ export async function createAdminUser(email: string, password: string, isTestUse
 export async function verifyAdminUser(userId: string): Promise<void> {
   await adminRequest(`/api/admin/users/${userId}/verify`, { method: 'POST' })
 }
+
+export async function deleteAdminUser(userId: string, confirmEmail: string): Promise<void> {
+  await adminRequest(`/api/admin/users/${userId}`, {
+    method: 'DELETE',
+    body: JSON.stringify({ confirm_email: confirmEmail }),
+  })
+}

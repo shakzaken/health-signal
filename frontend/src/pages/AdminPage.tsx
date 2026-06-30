@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { fetchAdminStats, fetchAdminUsers, createAdminUser, verifyAdminUser, type AdminStats, type AdminUser } from '../api/admin'
+import { fetchAdminStats, fetchAdminUsers, createAdminUser, verifyAdminUser, deleteAdminUser, type AdminStats, type AdminUser } from '../api/admin'
 
 function formatDate(value: string | null): string {
   if (!value) return '—'
@@ -24,6 +24,83 @@ function StatCard({ label, value }: { label: string; value: number }) {
   )
 }
 
+function DeleteUserModal({ user, onClose, onDeleted }: { user: AdminUser; onClose: () => void; onDeleted: () => void }) {
+  const [typedEmail, setTypedEmail] = useState('')
+  const [deleting, setDeleting] = useState(false)
+  const [error, setError] = useState('')
+
+  const canDelete = typedEmail === user.email
+
+  async function handleDelete() {
+    if (!canDelete) return
+    setDeleting(true)
+    setError('')
+    try {
+      await deleteAdminUser(user.id, typedEmail)
+      onDeleted()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete user')
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  return (
+    <div
+      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}
+      onClick={onClose}
+    >
+      <div
+        style={{ background: 'var(--surface)', borderRadius: 'var(--radius)', padding: 24, maxWidth: 420, width: '90%', boxShadow: '0 8px 32px rgba(0,0,0,.25)' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h2 style={{ fontSize: 16, fontWeight: 700, color: '#A23E3E', margin: '0 0 8px' }}>Delete user permanently</h2>
+        <p style={{ fontSize: 13, color: 'var(--sub)', margin: '0 0 14px' }}>
+          This deletes <strong>{user.email}</strong> and all their documents, lab results, symptoms,
+          supplements, conversations, and usage data. This cannot be undone.
+        </p>
+        <label style={{ display: 'block', fontSize: 12.5, fontWeight: 600, color: 'var(--sub)', marginBottom: 6 }}>
+          Type <code>{user.email}</code> to confirm
+        </label>
+        <input
+          type="text"
+          value={typedEmail}
+          onChange={(e) => setTypedEmail(e.target.value)}
+          placeholder={user.email}
+          autoFocus
+          style={{ width: '100%', padding: '8px 10px', border: '1px solid var(--border-strong)', borderRadius: 'calc(var(--radius) * 0.5)', fontSize: 13, fontFamily: 'inherit', boxSizing: 'border-box', marginBottom: 14 }}
+        />
+        {error && <div style={{ marginBottom: 12, fontSize: 13, color: '#A23E3E' }}>{error}</div>}
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+          <button
+            onClick={onClose}
+            style={{ padding: '8px 16px', background: 'none', border: '1px solid var(--border-strong)', borderRadius: 'calc(var(--radius) * 0.5)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleDelete}
+            disabled={!canDelete || deleting}
+            style={{
+              padding: '8px 16px',
+              background: canDelete ? '#A23E3E' : 'var(--border-strong)',
+              color: '#fff',
+              border: 'none',
+              borderRadius: 'calc(var(--radius) * 0.5)',
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: canDelete && !deleting ? 'pointer' : 'default',
+              fontFamily: 'inherit',
+            }}
+          >
+            {deleting ? 'Deleting…' : 'Delete permanently'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function AdminPage() {
   const [stats, setStats] = useState<AdminStats | null>(null)
   const [users, setUsers] = useState<AdminUser[]>([])
@@ -36,6 +113,7 @@ export default function AdminPage() {
   const [newIsTestUser, setNewIsTestUser] = useState(false)
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState('')
+  const [userToDelete, setUserToDelete] = useState<AdminUser | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -191,15 +269,21 @@ export default function AdminPage() {
                         <span style={{ color: '#A23E3E', fontWeight: 600 }}>No</span>
                       )}
                     </td>
-                    <td style={{ padding: '10px 14px' }}>
+                    <td style={{ padding: '10px 14px', whiteSpace: 'nowrap' }}>
                       {!u.is_verified && (
                         <button
                           onClick={() => handleVerify(u.id)}
-                          style={{ background: 'none', border: 'none', color: 'var(--accent)', fontWeight: 600, fontSize: 12.5, cursor: 'pointer', fontFamily: 'inherit', padding: 0 }}
+                          style={{ background: 'none', border: 'none', color: 'var(--accent)', fontWeight: 600, fontSize: 12.5, cursor: 'pointer', fontFamily: 'inherit', padding: 0, marginRight: 12 }}
                         >
                           Verify
                         </button>
                       )}
+                      <button
+                        onClick={() => setUserToDelete(u)}
+                        style={{ background: 'none', border: 'none', color: '#A23E3E', fontWeight: 600, fontSize: 12.5, cursor: 'pointer', fontFamily: 'inherit', padding: 0 }}
+                      >
+                        Delete
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -207,6 +291,17 @@ export default function AdminPage() {
             </table>
           </div>
         </>
+      )}
+
+      {userToDelete && (
+        <DeleteUserModal
+          user={userToDelete}
+          onClose={() => setUserToDelete(null)}
+          onDeleted={() => {
+            setUserToDelete(null)
+            load()
+          }}
+        />
       )}
     </div>
   )

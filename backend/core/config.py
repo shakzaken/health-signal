@@ -15,6 +15,9 @@ class Settings(BaseSettings):
     postgres_db: str = "healthsignal"
     secret_key: str
     ai_agent_url: str = "http://localhost:8001"
+    qdrant_host: str = "localhost"
+    qdrant_port: int = 6333
+    qdrant_api_key: str = ""
     file_storage_path: str = "./uploads"
     environment: str = "production"
     resend_api_key: str = ""

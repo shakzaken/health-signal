@@ -28,3 +28,7 @@ class AdminCreateUserRequest(BaseModel):
     email: EmailStr
     password: str
     is_test_user: bool = False
+
+
+class AdminDeleteUserRequest(BaseModel):
+    confirm_email: str
