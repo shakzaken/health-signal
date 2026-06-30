@@ -12,11 +12,15 @@ import httpx
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.deps import get_current_user
 from core.config import settings
 from core.logger import get_logger
+from db.session import get_session
+from models.usage_event import UsageEventType
 from models.user import User
+from repositories.usage_event_repository import UsageEventRepository
 
 logger = get_logger(__name__)
 
@@ -48,8 +52,10 @@ def _auth_header(user: User) -> dict:
 async def proxy_query_stream(
     request: QueryRequest,
     current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
 ):
     """Stream the AI answer as Server-Sent Events, proxied from the ai-agent."""
+    await UsageEventRepository(session).record(current_user.id, UsageEventType.query)
 
     async def stream():
         try:
@@ -84,8 +90,10 @@ async def proxy_query_stream(
 async def proxy_query(
     request: QueryRequest,
     current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
 ):
     """Forward a query to the ai-agent and return the JSON response."""
+    await UsageEventRepository(session).record(current_user.id, UsageEventType.query)
     try:
         async with httpx.AsyncClient() as client:
             resp = await client.post(

@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     frontend_url: str = "https://healthsignal.yakirzaken.com"
     sentry_dsn: str = ""
     google_client_id: str = ""
+    admin_email: str = ""
 
 
 settings = Settings()

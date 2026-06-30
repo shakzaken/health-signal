@@ -14,11 +14,13 @@ from models.lab_result import LabMarker, LabResult, MarkerStatus
 from models.supplement import SupplementEntry
 from models.symptom import SymptomEntry, SymptomSeverity
 from models.timeline import EventType
+from models.usage_event import UsageEventType
 from repositories.document_repository import DocumentRepository
 from repositories.ingestion_cleanup_repository import IngestionCleanupRepository
 from repositories.lab_result_repository import LabResultRepository
 from repositories.supplement_repository import SupplementRepository
 from repositories.symptom_repository import SymptomRepository
+from repositories.usage_event_repository import UsageEventRepository
 from services.timeline_service import TimelineService
 
 logger = get_logger(__name__)
@@ -32,6 +34,7 @@ class DocumentService:
         self.symptom_repo = SymptomRepository(session)
         self.supplement_repo = SupplementRepository(session)
         self.timeline_service = TimelineService(session)
+        self.usage_event_repo = UsageEventRepository(session)
 
     async def upload(
         self,
@@ -110,6 +113,9 @@ class DocumentService:
                 if detected_type:
                     logger.info(f"Document type auto-detected — id={document.id} type={detected_type}")
                 logger.info(f"Document status updated — id={document.id} status={new_status}")
+
+                if new_status == ProcessingStatus.completed and document.user_id:
+                    await self.usage_event_repo.record(uuid.UUID(str(document.user_id)), UsageEventType.ingestion)
 
                 # Save structured data if the ai-agent extracted it
                 if result.get("lab_result") and result["lab_result"].get("markers"):
