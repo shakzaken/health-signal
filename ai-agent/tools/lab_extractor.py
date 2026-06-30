@@ -4,6 +4,10 @@ from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.runnables.config import RunnableConfig
 from pydantic import BaseModel
 
+from core.logger import get_logger
+
+logger = get_logger(__name__)
+
 EXTRACTION_PROMPT = """You are a medical data extraction assistant.
 
 Extract all lab test markers from the text below. For each marker extract:
@@ -62,5 +66,6 @@ class LabExtractor:
                 config=config,
             )
             return result
-        except Exception:
+        except Exception as e:
+            logger.error(f"Lab result extraction failed — {e}")
             return ExtractedLabResult()

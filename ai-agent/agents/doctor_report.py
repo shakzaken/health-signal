@@ -93,7 +93,7 @@ class DoctorReportAgent:
                 resp.raise_for_status()
                 return resp.json()
         except Exception as e:
-            logger.warning(f"Backend request failed — url={url} error={e}")
+            logger.error(f"Backend request failed — url={url} error={e}")
             return None
 
     async def _fetch_abnormal_labs(self, period_days: int) -> str:
