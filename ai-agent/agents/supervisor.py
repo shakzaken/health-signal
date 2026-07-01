@@ -32,28 +32,50 @@ Classify the user's question into one of five categories:
 
 - "lab_analysis" — the question is about specific lab test results, blood markers, their numeric values,
   reference ranges, or trends for a single marker over time
-  (e.g. "what is my hemoglobin?", "is my cholesterol getting worse?", "what changed in my last blood test?")
+  (e.g. "what is my hemoglobin?", "is my cholesterol getting worse?", "what changed in my last blood test?",
+  "how did my Vitamin D change over the year?", "how did my kidney function change over 2024?",
+  "how did my eGFR / creatinine change?", "am I diabetic?", "do I have hypothyroidism?", "do I have anemia?",
+  "should I be worried about my kidneys?")
+  NOTE: direct yes/no diagnostic questions ("am I diabetic?", "do I have X?") ARE lab_analysis when the
+  answer depends on lab values — route them there so the answer gets lab_analysis's safety framing around
+  presenting values without diagnosing. Do not route these to "rag" just because they're phrased as a
+  question rather than a data lookup.
+  NOTE: "how did X change over time" IS lab_analysis when X is a single lab marker (Vitamin D, eGFR,
+  HbA1c, cholesterol, etc.) — do not route these to pattern_detection just because the phrasing
+  resembles a trend question. pattern_detection is for how a SYMPTOM/FEELING changed, or for
+  correlations ACROSS different data types.
   NOTE: questions about supplement *dosage*, *dose changes*, or *when a supplement was started/stopped*
   are NOT lab_analysis — they belong to "timeline" or "rag"
 
 - "pattern_detection" — the question asks about correlations, causes, or patterns across different
   types of health data (labs, symptoms, supplements) over time; OR asks how a symptom or feeling
-  changed over time; OR asks about the impact of a lifestyle event (work stress, exercise, diet)
-  on health symptoms or energy
+  changed over time; OR asks about the impact of a specific lifestyle event or period (work stress,
+  exercise, diet, a busy/stressful stretch of time) on health symptoms or energy DURING that period
   (e.g. "why was I so tired in January?", "did my fatigue correlate with low Vitamin D?",
   "what patterns do you see in my health data?", "did anything change after I started the supplement?",
   "did my morning stiffness change over time?", "how did my energy levels change?",
   "did my symptoms improve after starting supplements?", "was there a relationship between X and Y?",
-  "what happened to my health during a stressful period?", "did work stress affect my symptoms?",
-  "what changed when I started exercising / changed my diet?")
+  "what happened to my health during a stressful period?", "what happened during a period of intense work?",
+  "did work stress affect my symptoms?", "what changed when I started exercising / changed my diet?")
+  NOTE: a single lab marker's trend (e.g. "how did my Vitamin D change?") is lab_analysis, NOT
+  pattern_detection — pattern_detection needs either a symptom/feeling trend or a cross-domain correlation.
 
 - "timeline" — the question asks for a summary or chronological overview of health events
-  over a period of time, OR asks when something started/stopped/happened, OR asks about
-  current status of supplements (what am I taking now, what do I take currently)
+  over a period of time, OR asks when something started/stopped/happened (even if it also asks why,
+  as long as "when" is the primary ask or it covers multiple items/a full list), OR asks about
+  current status of supplements/medications (what am I taking now, what do I take currently)
   (e.g. "what happened to my health in the last 6 months?", "give me a health summary for 2024",
   "what health events happened around March?", "summarize my health history",
   "when did I start taking supplements?", "when did I stop iron?", "what supplements did I take and when?",
-  "what supplements am I currently taking?", "what am I taking right now?", "are my supplements working?")
+  "when did I start each supplement and why?", "when did I start my medications and why?",
+  "what supplements am I currently taking?", "what medications am I taking as of December?",
+  "what am I taking right now?", "are my supplements working?")
+  NOTE: "when did I start X (and why)?" is timeline, even though it mentions "why" — the primary ask is
+  "when", especially for a list of multiple items. Only route to "rag" if the question asks ONLY about
+  the reason for ONE specific item, with no "when" component at all (e.g. "why did I start fish oil?").
+  NOTE: "what happened to my health during [a specific stressful/busy period]" is pattern_detection
+  (impact of that period on symptoms), not timeline — timeline is for the general/full chronological
+  narrative or an explicit "when did X happen" question, not a period-impact question.
 
 - "doctor_report" — the user wants to generate a structured report to bring to a doctor appointment,
   or wants a comprehensive health summary across all data types
@@ -61,9 +83,12 @@ Classify the user's question into one of five categories:
   "what should I tell my doctor?")
 
 - "rag" — the question is about the content of uploaded documents, doctor notes, diet, supplement
-  dosage details, or anything that does not fit the above categories
+  dosage details, or specific lifestyle/diary content, or anything that does not fit the above categories
   (e.g. "what did my doctor say about my diet?", "what does my journal say about brain fog?",
-  "what dose of vitamin D am I taking?", "did my supplement dose change?", "why did I start fish oil?")
+  "what dose of vitamin D am I taking?", "did my supplement dose change?", "why did I start fish oil?",
+  "what lifestyle changes did I make?", "what GI side effects did I have when starting a medication?")
+  NOTE: only use "rag" for a "why" question about ONE specific item with no "when" component. If the
+  question asks "when" (even about why too) or covers multiple items/a full list, use "timeline" instead.
 
 Return only the category name, nothing else.
 """
@@ -108,12 +133,16 @@ class Supervisor:
         retriever: Retriever,
         backend_url: str,
         token: str = "",
+        classifier_llm: Optional[BaseChatModel] = None,
     ) -> None:
         if not token:
             logger.warning(
                 "Supervisor constructed without a token — all backend calls will fail silently."
             )
         self._llm = llm
+        # Routing decisions need to be deterministic — separate from the answer-generation
+        # LLM's default sampling temperature. Falls back to `llm` if not provided.
+        self._classifier_llm = classifier_llm or llm
         self._rag_chain = rag_chain
         self._retriever = retriever
         self._backend_url = backend_url
@@ -129,7 +158,7 @@ class Supervisor:
     # ── Graph nodes ───────────────────────────────────────────────────────────
 
     async def _classify(self, state: AgentState, config: RunnableConfig) -> AgentState:
-        classifier = self._llm.with_structured_output(RouteDecision)
+        classifier = self._classifier_llm.with_structured_output(RouteDecision)
         # include recent history context so follow-up questions are classified correctly
         history_context = ""
         if state["summary"]:

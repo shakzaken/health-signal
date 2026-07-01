@@ -12,7 +12,7 @@
 | 2 | Monitoring | ✅ Done |
 | 3 | Auth improvements | ✅ Done |
 | 4 | Admin panel | ✅ Done |
-| 5 | Answer quality (eval fixes) | 🔲 Not started |
+| 5 | Answer quality (eval fixes) | ✅ Done — routing fixed and verified deterministic across 3 datasets |
 | 6 | Auth & Google OAuth testing (production) | ✅ Done |
 | 7 | PostgreSQL and Qdrant auth | ✅ Done |
 | 8 | Session expiry reload-loop fix | ✅ Done |
@@ -204,23 +204,42 @@
 
 ---
 
-## Phase 5 — Answer quality (eval fixes)
+## Phase 5 — Answer quality (eval fixes) ✅
 
-### Task 5.1 — Fix supervisor routing
+### Task 5.1 — Fix supervisor routing ✅
 
-5 cases in test 002 incorrectly route to `lab_analysis` instead of the correct agent. All require fixes to `CLASSIFY_PROMPT` in `ai-agent/agents/supervisor.py`.
+**Original finding (superseded — kept for history):** 5 cases in test 002 were originally documented as misrouting to `lab_analysis`. When this phase was picked back up, none of those 5 exact cases reproduced — a *different* set of misroutes showed up instead. Root cause: the classifier LLM call had no `temperature=0`, so routing wasn't deterministic run-to-run — the "5 bugs" were a snapshot of one non-reproducible run, not a stable fact about the prompt.
 
-| Case | Question | Actual route | Expected route |
-|------|----------|-------------|----------------|
-| pattern_03 | "What happened during intense work in October?" | lab_analysis | pattern_detection |
-| pattern_04 | "What health changes around the lifestyle changes?" | lab_analysis | pattern_detection |
-| timeline_01 | "Give me a chronological summary of my health in 2024" | lab_analysis | timeline |
-| timeline_04 | "When did Daniel's energy levels start improving?" | lab_analysis | timeline |
-| rag_01 | "Why did Daniel start taking selenium?" | lab_analysis | rag |
+**What was actually done:**
+- [x] **New eval round (test 003)** — QA agent prepared 6 documents + 20 questions (Amir Cohen: prescribed medication, drug-nutrient interaction, Hebrew diaries, new marker types) specifically targeting prod edge cases. `golden_qa.md` includes a `**Route:** ...` annotation per question.
+- [x] **Added routing verification to the eval harness** (previously answer-quality only, routing was never machine-checked despite `golden_qa.md`'s `Route:` annotations existing as documentation only):
+  - `QueryResponse` (`ai-agent/api/routes/query.py`) and `Supervisor.run()` (`ai-agent/agents/supervisor.py`) now return the actual `route` taken, previously computed internally then discarded
+  - `EvalCase`/`load_cases_from_json` (`ai-agent/eval/dataset.py`) gained an `expected_route: list[str]` field (list, to allow "either is acceptable" cases)
+  - `run_evals.py` compares actual vs. expected route per case and reports routing accuracy separately from answer-quality scoring
+  - `generate_report.py`: fixed a pre-existing mislabeled column (said "Route", actually showed category) and added a routing-accuracy section
+  - Added `expected_route` to `eval/tests/002/dataset.json` (21 cases) and authored `eval/tests/003/dataset.json` (20 cases) from `golden_qa.md`
+- [x] **Found and fixed latent `/api`-prefix-migration bugs** in the eval tooling itself (missed during the earlier route-prefix migration): `eval/setup_and_run.py`, `eval/seed_demo.py`, and `ai-agent/eval/run_evals.py` were all still calling pre-migration paths (`/auth/register`, `/documents`, `/query`) — fixed to `/api/*`. Also fixed the eval user's hardcoded password (`eval-password-2024`), which violated the Phase 3 password rules (no uppercase).
+- [x] **Root cause #1 — non-deterministic classification:** `Supervisor` used the same LLM instance (default temperature) for both routing classification and answer generation. Added a separate `classifier_llm` (temperature=0), wired through `get_classifier_llm()` in `ai-agent/api/deps.py`, falling back to the shared `llm` if not provided (backward compatible). Confirmed via repeat runs: same misroute set every time after this change, vs. a different subset each run before it.
+- [x] **Root cause #2 — genuine `CLASSIFY_PROMPT` ambiguities**, found via 7 *reproducible* misroutes across test 002 + test 003:
+  - Single-marker lab trend questions ("how did my Vitamin D / kidney function change?") misrouting to `pattern_detection` — added explicit examples + a disambiguating NOTE to `lab_analysis`
+  - "When did I start X (and why)?" misrouting to `rag` — added explicit examples + a NOTE to `timeline` (primary "when" ask wins over an incidental "why")
+  - Direct diagnostic yes/no questions ("am I diabetic?", "do I have hypothyroidism?") misrouting to `rag` — this was a **real regression** introduced by the first prompt revision, not just a label mismatch: routing to `rag` bypassed `lab_analysis`'s safety framing and produced borderline-diagnostic language that failed the safety judge (score 1, blocking failure in test 003). Fixed by adding explicit diagnostic-question examples to `lab_analysis`.
+- [x] Rebuilt `ai-agent` with `--no-cache` after each change — a plain `docker compose up -d --build` was silently serving stale code from a Docker Desktop caching glitch (same class of issue hit earlier with `nginx.local.conf`); `--no-cache` was required to get changes to actually take effect.
+- [x] Sped up `ai-agent/eval/run_evals.py` from fully sequential to bounded-concurrency async (`asyncio` + a semaphore, `MAX_CONCURRENCY = 4`) — cut a full test run (setup + 20 questions + judge scoring + report) from several minutes to ~85 seconds. Kept concurrency capped rather than fully parallel to avoid OpenAI TPM rate limits.
 
-- [ ] Fix `CLASSIFY_PROMPT` in `ai-agent/agents/supervisor.py`
-- [ ] Re-run test 002 — target 21/21
-- [ ] Re-run test 001 — confirm no regressions (target 20/20)
+**Final results (all three datasets, deterministic):**
+
+| Test | Routing accuracy | Answer quality |
+|---|---|---|
+| 001 (Maya Cohen, regression baseline) | not checked (no `expected_route` set — pre-existing dataset) | 20/20 PASS, 0 WARN, 0 FAIL |
+| 002 (Daniel) | 21/21 | 18 PASS / 3 WARN / 0 FAIL |
+| 003 (Amir, prod edge cases) | 18/20 | 14 PASS / 6 WARN / 0 FAIL |
+
+**Two known remaining edge cases in test 003 (low severity, not blocking):**
+- `rag_03` ("what lifestyle changes did I make?") keeps landing on the wrong category across iterations (`timeline` → `pattern_detection`) — a genuinely fuzzy boundary the prompt hasn't fully captured
+- `safety_02` ("can I stop Metformin...") routes to `lab_analysis`; the dataset itself marks this question as ambiguous between `timeline`/`rag` — no safety-score impact, arguably a reasonable alternative classification rather than a bug
+
+**Follow-up, not yet checked:** what OpenAI usage/rate-limit tier the account is on. `ChatOpenAI` has no custom retry logic in this app, but falls through to the underlying OpenAI SDK's default of 2 automatic retries on transient errors (429s included) — confirmed via inspecting the SDK. Baseline resilience exists; the actual TPM ceiling for real concurrent production traffic hasn't been checked against the account's current tier.
 
 ---
 
@@ -433,3 +452,4 @@ Found during setup: Cloudflare's Free plan only allows **1 rate limiting rule to
 - Move uploaded files to Cloudflare R2 (decouples file storage from server disk)
 - pg_dump cron job (if/when 1-day data loss becomes unacceptable with paying users)
 - Apple Sign In
+- Check the OpenAI account's actual usage/rate-limit tier (dashboard → rate limits) against expected concurrent production traffic. The app has no custom retry logic, relying on the OpenAI SDK's default of 2 automatic retries on 429s — fine for occasional transient errors, but the real TPM ceiling for a busier app hasn't been verified against the account's current tier.

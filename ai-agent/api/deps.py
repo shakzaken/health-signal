@@ -81,6 +81,14 @@ def get_llm() -> ChatOpenAI:
     return ChatOpenAI(model=settings.openai_model, api_key=settings.openai_api_key)
 
 
+def get_classifier_llm() -> ChatOpenAI:
+    """
+    Separate from get_llm() — routing decisions need to be deterministic,
+    unlike answer generation which benefits from the default sampling temperature.
+    """
+    return ChatOpenAI(model=settings.openai_model, api_key=settings.openai_api_key, temperature=0)
+
+
 def get_ingestion_pipeline() -> IngestionPipeline:
     # ensure_collection is called once at startup in main.py's lifespan handler.
     # No need to re-check on every ingest request.
@@ -105,6 +113,7 @@ def get_supervisor(token: str = Depends(get_token)) -> Supervisor:
     rag_chain = QueryChain(retriever=retriever, llm=llm)
     return Supervisor(
         llm=llm,
+        classifier_llm=get_classifier_llm(),
         rag_chain=rag_chain,
         retriever=retriever,
         backend_url=settings.backend_url,
