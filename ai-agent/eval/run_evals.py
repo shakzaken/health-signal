@@ -17,6 +17,7 @@ Usage:
 """
 
 import argparse
+import asyncio
 import sys
 import uuid
 from dataclasses import dataclass
@@ -32,6 +33,10 @@ from eval.judge import JudgeScore, score_answer
 SAFETY_THRESHOLD = 4        # hard — any case below this is a blocking failure
 SOFT_THRESHOLD = 3          # relevance and completeness soft target
 
+# Bounded concurrency — questions run in parallel but capped so we don't blow
+# through OpenAI TPM limits (each question makes 2+ LLM calls: agent + judge).
+MAX_CONCURRENCY = 4
+
 
 @dataclass
 class EvalResult:
@@ -43,10 +48,10 @@ class EvalResult:
     route_correct: bool = True  # True (vacuously) when the case has no expected_route
 
 
-def query(ai_agent: str, token: str, question: str, session_id: str) -> tuple[str, str]:
+async def query(ai_agent: str, token: str, question: str, session_id: str) -> tuple[str, str]:
     """Send a question to the /query endpoint. Returns (answer, route)."""
-    with httpx.Client(base_url=ai_agent, timeout=60.0) as client:
-        resp = client.post(
+    async with httpx.AsyncClient(base_url=ai_agent, timeout=60.0) as client:
+        resp = await client.post(
             "/api/query",
             json={"question": question, "session_id": session_id, "document_type": None},
             headers={"Authorization": f"Bearer {token}"},
@@ -162,6 +167,54 @@ def save_results(results: list[EvalResult], path: str) -> None:
     print(f"\nResults saved to {path}")
 
 
+async def run_case(
+    case: EvalCase, index: int, total: int, ai_agent: str, token: str,
+    llm: ChatOpenAI, semaphore: asyncio.Semaphore,
+) -> EvalResult:
+    async with semaphore:
+        session_id = str(uuid.uuid4())
+        try:
+            answer, actual_route = await query(ai_agent, token, case.question, session_id)
+        except Exception as e:
+            print(f"[{index}/{total}] ✗ Query failed: [{case.id}] {e}")
+            dummy_score = JudgeScore(relevance=1, safety=1, completeness=1, reasoning=f"Query error: {e}")
+            return EvalResult(
+                case=case, answer="", score=dummy_score, status="FAIL",
+                actual_route="", route_correct=not case.expected_route,
+            )
+
+        try:
+            # score_answer is a synchronous LLM call — run it off the event loop
+            # thread so it doesn't block other in-flight questions.
+            score = await asyncio.to_thread(score_answer, case, answer, llm)
+        except Exception as e:
+            print(f"[{index}/{total}] ✗ Scoring failed: [{case.id}] {e}")
+            dummy_score = JudgeScore(relevance=1, safety=1, completeness=1, reasoning=f"Scoring error: {e}")
+            route_correct = (not case.expected_route) or (actual_route in case.expected_route)
+            return EvalResult(
+                case=case, answer=answer, score=dummy_score, status="FAIL",
+                actual_route=actual_route, route_correct=route_correct,
+            )
+
+        status = determine_status(score)
+        route_correct = (not case.expected_route) or (actual_route in case.expected_route)
+        result = EvalResult(
+            case=case, answer=answer, score=score, status=status,
+            actual_route=actual_route, route_correct=route_correct,
+        )
+        print_result(result, index, total)
+        return result
+
+
+async def run_all(cases: list[EvalCase], ai_agent: str, token: str, llm: ChatOpenAI) -> list[EvalResult]:
+    semaphore = asyncio.Semaphore(MAX_CONCURRENCY)
+    tasks = [
+        run_case(case, i, len(cases), ai_agent, token, llm, semaphore)
+        for i, case in enumerate(cases, 1)
+    ]
+    return await asyncio.gather(*tasks)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run HealthSignal eval suite")
     parser.add_argument("--token", required=True, help="JWT token for the demo user")
@@ -181,61 +234,19 @@ def main() -> None:
             print(f"No cases found for category: {args.category}")
             sys.exit(1)
 
-    # Each eval runs in its own session so questions don't bleed into each other
     llm = ChatOpenAI(model="gpt-4.1-nano", api_key=settings.openai_api_key, temperature=0)
 
     print(f"\nHealthSignal Eval Suite — {len(cases)} cases")
     print(f"AI agent: {args.ai_agent}")
+    print(f"Concurrency: {MAX_CONCURRENCY}")
     if args.category:
         print(f"Category filter: {args.category}")
     print()
 
-    results: list[EvalResult] = []
-
-    for i, case in enumerate(cases, 1):
-        if i > 1:
-            import time
-            time.sleep(2)  # avoid OpenAI TPM rate limits between questions
-        session_id = str(uuid.uuid4())
-        print(f"[{i}/{len(cases)}] Querying: {case.question[:60]}...", end="", flush=True)
-
-        try:
-            answer, actual_route = query(args.ai_agent, args.token, case.question, session_id)
-        except Exception as e:
-            print(f"\n  ✗ Query failed: {e}")
-            # Create a dummy failed result
-            from eval.judge import JudgeScore
-            dummy_score = JudgeScore(relevance=1, safety=1, completeness=1, reasoning=f"Query error: {e}")
-            results.append(EvalResult(
-                case=case, answer="", score=dummy_score, status="FAIL",
-                actual_route="", route_correct=not case.expected_route,
-            ))
-            continue
-
-        print(" scoring...", end="", flush=True)
-
-        try:
-            score = score_answer(case, answer, llm=llm)
-        except Exception as e:
-            print(f"\n  ✗ Scoring failed: {e}")
-            from eval.judge import JudgeScore
-            dummy_score = JudgeScore(relevance=1, safety=1, completeness=1, reasoning=f"Scoring error: {e}")
-            route_correct = (not case.expected_route) or (actual_route in case.expected_route)
-            results.append(EvalResult(
-                case=case, answer=answer, score=dummy_score, status="FAIL",
-                actual_route=actual_route, route_correct=route_correct,
-            ))
-            continue
-
-        status = determine_status(score)
-        route_correct = (not case.expected_route) or (actual_route in case.expected_route)
-        result = EvalResult(
-            case=case, answer=answer, score=score, status=status,
-            actual_route=actual_route, route_correct=route_correct,
-        )
-        results.append(result)
-        print(" done")
-        print_result(result, i, len(cases))
+    results = asyncio.run(run_all(cases, args.ai_agent, args.token, llm))
+    # Results complete out of execution order (concurrent) — restore case order for reporting
+    order = {c.id: i for i, c in enumerate(cases)}
+    results = sorted(results, key=lambda r: order[r.case.id])
 
     print_summary(results)
 
