@@ -13,9 +13,11 @@
 | 3 | Auth improvements | ✅ Done |
 | 4 | Admin panel | ✅ Done |
 | 5 | Answer quality (eval fixes) | 🔲 Not started |
-| 6 | Auth & Google OAuth testing (production) | 🔄 Google OAuth done, password/email verification pending |
+| 6 | Auth & Google OAuth testing (production) | ✅ Done |
 | 7 | PostgreSQL and Qdrant auth | ✅ Done |
 | 8 | Session expiry reload-loop fix | ✅ Done |
+| 9 | Rate limiting / brute-force & spam protection | 🔲 In progress — Layer 0 (origin firewall) done, Layer 1 (Cloudflare rule) and Layer 2 deploy remaining |
+| 10 | SSH access hardening | 🔲 Planning only — for later |
 
 ---
 
@@ -25,7 +27,7 @@
 
 - [x] Go to Hetzner dashboard → server → Backups tab
 - [x] Enable backups (one checkbox, ~€2.00/month — 20% of CX33 cost)
-- [ ] Verify first snapshot appears within 24 hours
+- [x] Verify first snapshot appears within 24 hours
 
 ---
 
@@ -77,7 +79,7 @@
 - [x] Return clear error message if validation fails
 - [x] QA tested — 15/15 cases passing
 
-### Task 4.2 — Email confirmation 🔄 In progress
+### Task 4.2 — Email confirmation ✅
 
 **Database**
 - [x] Add columns to `users` table: `is_verified` (bool, default false), `verification_token` (str, nullable), `verification_token_expires_at` (datetime, nullable)
@@ -93,11 +95,11 @@
 - [x] Write email template in `backend/services/email_service.py`
 - [x] Add `RESEND_API_KEY` and `FRONTEND_URL` to `backend/core/config.py`
 
-**Email (Resend) — pending setup**
-- [ ] Create Resend account at resend.com
-- [ ] Add DNS records to Cloudflare (SPF, DKIM) for `yakirzaken.com`
-- [ ] Verify domain in Resend dashboard
-- [ ] Get API key and add `RESEND_API_KEY` to `backend/.env` on server
+**Email (Resend) ✅**
+- [x] Create Resend account at resend.com
+- [x] Add DNS records to Cloudflare (SPF, DKIM) for `yakirzaken.com`
+- [x] Verify domain in Resend dashboard
+- [x] Get API key and add `RESEND_API_KEY` to `backend/.env` on server
 
 **Frontend**
 - [x] Show "Check your email" screen after registration (production only)
@@ -134,8 +136,8 @@
 - [x] Add `VITE_GOOGLE_CLIENT_ID` to `frontend/.env` on server
 
 **Deploy**
-- [ ] Copy updated `backend/.env` and `frontend/.env` to server
-- [ ] Push to `main` — CI/CD deploys and tests Google login on production
+- [x] Copy updated `backend/.env` and `frontend/.env` to server
+- [x] Push to `main` — CI/CD deploys and tests Google login on production
 
 ---
 
@@ -222,27 +224,27 @@
 
 ---
 
-## Phase 6 — Auth & Google OAuth testing (production)
+## Phase 6 — Auth & Google OAuth testing (production) ✅
 
-### Task 6.1 — Password rules
-- [ ] Register with password shorter than 8 chars → error: "Password must be at least 8 characters"
-- [ ] Register with no uppercase → error: "Password must contain at least one uppercase letter"
-- [ ] Register with no number → error: "Password must contain at least one number"
-- [ ] Register with valid password (e.g. `Test1234`) → succeeds
+### Task 6.1 — Password rules ✅
+- [x] Register with password shorter than 8 chars → error: "Password must be at least 8 characters"
+- [x] Register with no uppercase → error: "Password must contain at least one uppercase letter"
+- [x] Register with no number → error: "Password must contain at least one number"
+- [x] Register with valid password (e.g. `Test1234`) → succeeds
 
-### Task 6.2 — Email verification
-- [ ] Register new user → "Check your email" screen appears
-- [ ] Check spam folder note is visible
-- [ ] Click verification link from email → redirected to app and logged in
-- [ ] Try to login before verifying → 403 with clear message
-- [ ] "Resend verification email" link works
+### Task 6.2 — Email verification ✅
+- [x] Register new user → "Check your email" screen appears
+- [x] Check spam folder note is visible
+- [x] Click verification link from email → redirected to app and logged in
+- [x] Try to login before verifying → 403 with clear message
+- [x] "Resend verification email" link works
 
 ### Task 6.3 — Google OAuth ✅
 - [x] Click "Continue with Google" → Google account picker appears
 - [x] Select account → logged into app with correct email shown
 - [x] Log out → log back in with Google → works without re-consent
 - [x] Logged in with two different Google accounts in the same browser session → found and fixed a cross-account chat leak bug (see Phase 8 — `useChat` state wasn't resetting on account switch)
-- [ ] Register a new email/password account, then log in with Google using same email → accounts linked, same user (not yet tested)
+- [x] Register a new email/password account, then log in with Google using same email → accounts linked, same user
 
 ---
 
@@ -316,9 +318,114 @@ docker compose up -d          # recreates everything fresh with auth enabled
 
 ---
 
+## Phase 9 — Rate limiting / brute-force & spam protection (planning)
+
+**Why:** No rate limiting exists anywhere right now — not at nginx, not at the application layer. `POST /api/auth/login` and `POST /api/auth/register` can currently be hit unlimited times by a script: brute-forcing a password, or mass-creating spam accounts (cost impact: Resend emails, Sentry events, DB/storage bloat).
+
+**Confirmed:** `healthsignal.yakirzaken.com` resolves to Cloudflare anycast IPs (`172.67.184.81`, `104.21.43.193`) — Cloudflare is proxying live traffic (orange-cloud), not just handling DNS. This matches the `origin.pem`/`origin.key` setup (Origin CA certs only apply to proxied origins). Confirmed via `dig`.
+
+**Important gap found:** Cloudflare only sits "in front" of the app for traffic that arrives via the domain. Nothing currently stops a request from going straight to the Hetzner server's real IP on port 443, completely bypassing Cloudflare (rate limiting, WAF, everything). The origin IP is not secret — it can leak via Certificate Transparency logs (every cert, including the Origin CA cert, is publicly logged on crt.sh/censys), DNS history tools (SecurityTrails, DNSDumpster), a misconfigured non-proxied subdomain pointing at the same box, or straight IP/TLS-fingerprint scanning (Shodan). If an attacker connects directly to `<hetzner-ip>:443`, nginx answers normally — the Origin CA cert is valid regardless of how the connection arrived — so Layer 1 below would never even see that traffic. This is why a **Layer 0** origin firewall is required for Layer 1 to be a real (not assumed) first line of defense.
+
+**Decided approach:** origin firewall + two layers, auth routes only for this pass, IP-based (no account lockout for now).
+
+### Layer 0 — Origin firewall (prerequisite — makes Cloudflare the *only* path in)
+
+Without this, Layer 1 is advisory, not enforced — the origin firewall is what actually forces all traffic through Cloudflare.
+
+- Cloudflare publishes their edge IP ranges: `https://www.cloudflare.com/ips-v4` and `https://www.cloudflare.com/ips-v6` (changes rarely, but isn't static — needs periodic review, not a one-time copy-paste)
+- Use Hetzner Cloud Firewall (or `ufw` on the box) to allow inbound 80/443 **only** from Cloudflare's published ranges; deny everything else on those ports
+- SSH (22) should already be restricted to a trusted IP — verify this is still the case, separately from the 80/443 rule
+- With this in place, a direct request to the Hetzner IP is dropped at the network layer before nginx ever sees it
+
+### Layer 1 — Cloudflare Rate Limiting Rule (primary defense, edge-level)
+
+Blocks abusive traffic before it ever reaches nginx/backend — cheapest and most effective layer since Cloudflare already terminates TLS and sees the true client IP regardless of origin config.
+
+- One rule matching path: `/api/auth/login`, `/api/auth/register`, `/api/auth/resend-verification`, `/api/auth/google/verify`
+- Threshold: ~5 requests/minute per IP → block for a short cooldown (5–10 min)
+- Free plan includes a limited number of rate limiting rules — confirm current allowance in the Cloudflare dashboard (Security → WAF → Rate limiting rules) before implementing, since plan allowances change
+
+### Layer 2 — nginx `limit_req` (defense-in-depth, catches anything reaching origin)
+
+- **Prerequisite:** nginx currently sees Cloudflare's edge IP as `$remote_addr`, not the real client IP, because Cloudflare proxies. Must add `real_ip_header CF-Connecting-IP;` + `set_real_ip_from <Cloudflare IP ranges>;` to `nginx.conf` first — otherwise `limit_req` either lumps all users into one IP or is a no-op
+- Add `limit_req_zone` + `limit_req` scoped to `location /api/auth/` only (not the whole `/api/` catch-all)
+- Returns `429 Too Many Requests` on excess
+
+### Suggested starting limits
+
+| Route | Limit |
+|---|---|
+| `/api/auth/login` | 5/min per IP |
+| `/api/auth/register` | 3/hour per IP |
+| `/api/auth/resend-verification` | 3/hour per IP |
+| `/api/auth/google/verify` | 5/min per IP |
+
+### Scope decisions (settled)
+
+- [x] Auth routes only for this pass (`login`, `register`, `resend-verification`, `google/verify`) — query/upload rate limiting deferred to a later phase if usage patterns warrant it
+- [x] IP-based only — no per-email account lockout in this pass (revisit if brute-force attempts show up in logs targeting a single account across many IPs)
+- [x] No Uptime Robot allowlist needed — its monitor hits `/` (the SPA), not any `/api/auth/*` route, so it's unaffected by this scope
+
+### Implementation
+
+**Layer 0 — Origin firewall ✅**
+- [x] Set up Hetzner Cloud Firewall: allow 443 (and 80, pending SSL/TLS mode check below) only from Cloudflare's published IP ranges, SSH restricted to trusted IP, deny otherwise
+- [x] Detached and deleted the old permissive firewall (was allowing traffic from anywhere) — confirmed new firewall was blocking correctly before deleting the old one, per the safe detach-then-verify-then-delete order
+- [x] Verified SSH (22) still reachable after the change — not locked out
+- [x] Verified: direct IP on 443 and 80 both time out (`000`) after the firewall was applied; via-domain traffic still returns `200` — confirmed with a real before/after test against production (baseline: direct IP :443 → `200`, :80 → `301`, both reachable; after: both → `000` timeout, domain unaffected)
+- [x] Confirmed Cloudflare SSL/TLS mode is **Full** — Cloudflare only talks to the origin over 443, never 80
+- [x] Removed the port 80 rule from the firewall entirely (tighter than the original plan — even Cloudflare's own IPs don't need port 80 access in Full mode). Re-verified via-domain traffic still returns `200` after the change — confirms port 80 truly wasn't needed
+
+**Layer 1 — Cloudflare Rate Limiting Rule ✅**
+
+Found during setup: Cloudflare's Free plan only allows **1 rate limiting rule total** (not per-path), and both the counting **period and block duration are fixed at 10 seconds** — no custom 1 min / 1 hour windows or longer blocks like Business/Enterprise gets. This changes Cloudflare's role from "the real throttle" to a **flood brake**: it only catches very fast, aggressive bursts, and unblocks quickly. The actual precise enforcement (5r/m login, 1r/m register) is done by nginx (Layer 2), which has no such plan-tier restriction.
+
+- [x] Confirmed Free plan allowance: 1 rule, fixed 10s period, fixed 10s block duration (not configurable)
+- [x] Created the single rule, matching all 4 auth paths with OR, rate 3 requests / 10 seconds per IP → Block 10 seconds:
+  ```
+  (http.request.uri.path eq "/api/auth/login") or
+  (http.request.uri.path eq "/api/auth/register") or
+  (http.request.uri.path eq "/api/auth/resend-verification") or
+  (http.request.uri.path eq "/api/auth/google/verify")
+  ```
+- [x] Decided **not** to bundle `/api/ai/query` or `/api/documents/upload` into this same rule — a single rule shares one threshold across everything it matches, and active chat usage can easily exceed 3 requests/10s legitimately (quick back-and-forth, streaming). Bundling would risk throttling real users, not just attackers. See "query/upload rate limiting" follow-up below instead.
+- [ ] Confirm Uptime Robot / health checks aren't affected (low risk — it only hits `/`, not `/api/auth/*`)
+
+**Follow-up (separate from this phase) — query/upload rate limiting**
+- [ ] Add a separate nginx `limit_req` zone (not Cloudflare, which has no rule slots left) for `/api/ai/query` and `/api/documents/upload`, with a much more generous rate (~20-30/min) than the auth zones — protects against scripted abuse without capping normal chat usage. Not yet scoped in detail; revisit if usage patterns actually show abuse.
+
+**Layer 2 — nginx `limit_req` ✅ (code complete, tested locally)**
+- [x] Added `real_ip_header` / `set_real_ip_from` (Cloudflare IP ranges) to `nginx/nginx.conf`
+- [x] Added `limit_req_zone` + `limit_req` scoped to the 4 auth routes in both `nginx/nginx.conf` (production) and `nginx/nginx.local.conf` (local dev — was stale/pre-`/api`-migration, brought up to date as part of this work)
+- [x] Fixed an invalid rate unit caught during local testing: nginx only supports `r/s`/`r/m`, not `r/h` — `3r/h` would have crashed nginx on deploy; changed to `1r/m` for register/resend as the closest nginx-side approximation (the real ~3/hour precision is enforced by the Cloudflare rule instead)
+- [x] Frontend: handles `429` on login/register/resend-verification/google-login with a clear "Too many attempts. Please wait a moment and try again." message (`AuthContext.tsx`) — verified `resendVerification`'s existing silent-catch (anti-enumeration) behavior is unaffected/still correct
+- [x] Tested locally via `docker compose`: login burst (rate 5/min, burst 3) → first 4 requests reach backend normally (`401`), then `429`; register burst (rate 1/min, burst 2) → first 3 requests succeed (`201`), then `429` — confirms legitimate single-request usage isn't falsely throttled
+- [ ] Deploy to production and retest the same burst pattern against the live domain (not yet done — changes are uncommitted in the working tree; user handles all git commit/push actions)
+
+---
+
+## Phase 10 — SSH access hardening (planning — for later)
+
+**Why:** While setting up the Layer 0 origin firewall in Phase 9, we considered IP-restricting SSH (22) the same way as 80/443, but paused on it — a home ISP connection's IP can change (dynamic DHCP lease), which risks a self-lockout if the firewall only allows a specific IP that later changes. This deserves its own decision, separate from the web app rate limiting work.
+
+**Open questions to decide before implementing:**
+- [ ] Is the home IP actually stable in practice? Check via `whatismyip.com` before and after a router reboot — if it doesn't change, IP-restricting SSH is low-risk; if it rotates often, a different approach is needed
+- [ ] Does the ISP offer a static IP option (often a small add-on fee)? Would make IP-restriction simple and permanent
+- [ ] Is SSH already key-only (no password auth)? If so, the actual brute-force risk from leaving SSH open to any IP is already low — IP-restricting it may be a nice-to-have rather than essential, unlike 80/443 which protects the whole rate-limiting effort
+- [ ] Decide the approach: (a) get a static IP and lock SSH to it, (b) leave SSH open to all IPs but harden with key-only auth + fail2ban, or (c) some hybrid (e.g. a small known CIDR range from the ISP)
+
+**Before touching anything:**
+- [ ] Verify Hetzner Cloud Console (browser-based VNC/serial console) works for this server — it bypasses the network firewall entirely, so it's the safety net if an SSH IP-lock ever backfires. Test this once now, not under pressure during a lockout.
+
+**Implementation (not started — for later):**
+- [ ] Audit current `sshd_config` — confirm `PasswordAuthentication no`, confirm root login policy
+- [ ] Based on the decision above, either add an SSH rule to the Hetzner firewall restricted to a static/known IP, or leave SSH broadly reachable and add `fail2ban` for brute-force protection instead
+- [ ] If IP-restricting: document a recovery plan for what to do when the home IP changes (e.g. use Hetzner Console to update the firewall rule remotely)
+
+---
+
 ## Deferred / future
 
 - Move uploaded files to Cloudflare R2 (decouples file storage from server disk)
 - pg_dump cron job (if/when 1-day data loss becomes unacceptable with paying users)
 - Apple Sign In
-- Phase 9 — Uptime Robot (moved to Phase 2 above)

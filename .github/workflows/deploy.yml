@@ -20,6 +20,6 @@ jobs:
             cd /opt/health-signal
             git pull
             set -a; source frontend/.env; set +a
-            docker compose build
-            docker compose run --rm migrate
-            docker compose up -d
+            docker compose -f docker-compose.yml build
+            docker compose -f docker-compose.yml run --rm migrate
+            docker compose -f docker-compose.yml up -d
