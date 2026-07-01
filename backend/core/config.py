@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     qdrant_api_key: str = ""
     file_storage_path: str = "./uploads"
     environment: str = "production"
+    require_email_verification: bool = False
     resend_api_key: str = ""
     frontend_url: str = "https://healthsignal.yakirzaken.com"
     sentry_dsn: str = ""

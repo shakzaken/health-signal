@@ -40,8 +40,9 @@ async def register(
 
     hashed = hash_password(body.password)
 
-    if settings.environment != "production":
-        # Skip email verification in non-production environments
+    if settings.environment != "production" or not settings.require_email_verification:
+        # Skip email verification — either non-production, or verification is
+        # temporarily disabled via REQUIRE_EMAIL_VERIFICATION (see docs/post-production-tasks.md)
         user = await repo.create(
             email=body.email,
             hashed_password=hashed,
@@ -49,7 +50,7 @@ async def register(
             verification_token_expires_at=None,
             is_verified=True,
         )
-        logger.info(f"New user registered (dev, auto-verified) — user_id={user.id}")
+        logger.info(f"New user registered (auto-verified) — user_id={user.id}")
         token = create_access_token(str(user.id))
         return TokenResponse(access_token=token)
 
@@ -126,7 +127,7 @@ async def login(
             detail="Invalid email or password",
         )
 
-    if settings.environment == "production" and not user.is_verified:
+    if settings.environment == "production" and settings.require_email_verification and not user.is_verified:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Please verify your email before logging in.",
