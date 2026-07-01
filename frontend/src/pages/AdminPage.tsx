@@ -257,7 +257,26 @@ export default function AdminPage() {
               <tbody>
                 {users.map((u) => (
                   <tr key={u.id} style={{ borderTop: '1px solid var(--border)' }}>
-                    <td style={{ padding: '10px 14px', color: 'var(--ink)' }}>{u.email}</td>
+                    <td style={{ padding: '10px 14px', color: 'var(--ink)' }}>
+                      {u.email}
+                      {u.is_test_user && (
+                        <span
+                          style={{
+                            marginLeft: 8,
+                            padding: '2px 6px',
+                            borderRadius: 4,
+                            fontSize: 10.5,
+                            fontWeight: 700,
+                            letterSpacing: 0.3,
+                            color: 'var(--sub)',
+                            background: 'var(--bg)',
+                            border: '1px solid var(--border)',
+                          }}
+                        >
+                          TEST
+                        </span>
+                      )}
+                    </td>
                     <td style={{ padding: '10px 14px', color: 'var(--sub)' }}>{formatDate(u.created_at)}</td>
                     <td style={{ padding: '10px 14px', color: 'var(--sub)' }}>{formatDate(u.last_login_at)}</td>
                     <td style={{ padding: '10px 14px', color: 'var(--sub)' }}>{u.documents_ingested}</td>
