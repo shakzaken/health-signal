@@ -39,18 +39,21 @@ class EvalResult:
     answer: str
     score: JudgeScore
     status: str             # "PASS" | "WARN" | "FAIL"
+    actual_route: str = ""
+    route_correct: bool = True  # True (vacuously) when the case has no expected_route
 
 
-def query(ai_agent: str, token: str, question: str, session_id: str) -> str:
-    """Send a question to the /query endpoint and return the answer text."""
+def query(ai_agent: str, token: str, question: str, session_id: str) -> tuple[str, str]:
+    """Send a question to the /query endpoint. Returns (answer, route)."""
     with httpx.Client(base_url=ai_agent, timeout=60.0) as client:
         resp = client.post(
-            "/query",
+            "/api/query",
             json={"question": question, "session_id": session_id, "document_type": None},
             headers={"Authorization": f"Bearer {token}"},
         )
         resp.raise_for_status()
-        return resp.json().get("answer", "")
+        data = resp.json()
+        return data.get("answer", ""), data.get("route", "")
 
 
 def determine_status(score: JudgeScore) -> str:
@@ -71,6 +74,9 @@ def print_result(result: EvalResult, index: int, total: int) -> None:
 
     print(f"\n[{index}/{total}] {color}{icon} {result.status}{reset}  [{result.case.id}] {result.case.question[:70]}")
     print(f"  Relevance={result.score.relevance}  Safety={result.score.safety}  Completeness={result.score.completeness}")
+    if result.case.expected_route:
+        route_icon = "✓" if result.route_correct else "✗"
+        print(f"  Route: {route_icon} expected={'/'.join(result.case.expected_route)} actual={result.actual_route}")
     print(f"  Judge: {result.score.reasoning}")
     if result.status == "FAIL":
         print(f"  Answer preview: {result.answer[:200]}...")
@@ -84,6 +90,19 @@ def print_summary(results: list[EvalResult]) -> None:
     print("\n" + "=" * 64)
     print("EVAL SUMMARY")
     print("=" * 64)
+
+    routed_cases = [r for r in results if r.case.expected_route]
+    if routed_cases:
+        correct = [r for r in routed_cases if r.route_correct]
+        wrong = [r for r in routed_cases if not r.route_correct]
+        print(f"\n  ROUTING ACCURACY: {len(correct)}/{len(routed_cases)} correct")
+        if wrong:
+            print("  Misrouted:")
+            for r in wrong:
+                print(
+                    f"    ✗ [{r.case.id}] expected={'/'.join(r.case.expected_route)} "
+                    f"actual={r.actual_route} — {r.case.question[:60]}"
+                )
 
     # Category breakdown
     categories = sorted({r.case.category for r in results})
@@ -124,6 +143,7 @@ def save_results(results: list[EvalResult], path: str) -> None:
                 "category": r.case.category,
                 "question": r.case.question,
                 "notes": r.case.notes,
+                "expected_route": r.case.expected_route,
             },
             "answer": r.answer,
             "score": {
@@ -133,6 +153,8 @@ def save_results(results: list[EvalResult], path: str) -> None:
                 "reasoning": r.score.reasoning,
             },
             "status": r.status,
+            "actual_route": r.actual_route,
+            "route_correct": r.route_correct,
         }
         for r in results
     ]
@@ -178,13 +200,16 @@ def main() -> None:
         print(f"[{i}/{len(cases)}] Querying: {case.question[:60]}...", end="", flush=True)
 
         try:
-            answer = query(args.ai_agent, args.token, case.question, session_id)
+            answer, actual_route = query(args.ai_agent, args.token, case.question, session_id)
         except Exception as e:
             print(f"\n  ✗ Query failed: {e}")
             # Create a dummy failed result
             from eval.judge import JudgeScore
             dummy_score = JudgeScore(relevance=1, safety=1, completeness=1, reasoning=f"Query error: {e}")
-            results.append(EvalResult(case=case, answer="", score=dummy_score, status="FAIL"))
+            results.append(EvalResult(
+                case=case, answer="", score=dummy_score, status="FAIL",
+                actual_route="", route_correct=not case.expected_route,
+            ))
             continue
 
         print(" scoring...", end="", flush=True)
@@ -195,11 +220,19 @@ def main() -> None:
             print(f"\n  ✗ Scoring failed: {e}")
             from eval.judge import JudgeScore
             dummy_score = JudgeScore(relevance=1, safety=1, completeness=1, reasoning=f"Scoring error: {e}")
-            results.append(EvalResult(case=case, answer=answer, score=dummy_score, status="FAIL"))
+            route_correct = (not case.expected_route) or (actual_route in case.expected_route)
+            results.append(EvalResult(
+                case=case, answer=answer, score=dummy_score, status="FAIL",
+                actual_route=actual_route, route_correct=route_correct,
+            ))
             continue
 
         status = determine_status(score)
-        result = EvalResult(case=case, answer=answer, score=score, status=status)
+        route_correct = (not case.expected_route) or (actual_route in case.expected_route)
+        result = EvalResult(
+            case=case, answer=answer, score=score, status=status,
+            actual_route=actual_route, route_correct=route_correct,
+        )
         results.append(result)
         print(" done")
         print_result(result, i, len(cases))

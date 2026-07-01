@@ -1,0 +1,142 @@
+Clalit Health Services — Central Laboratory
+Blood Test Results
+
+Date: 15/01/2024
+Patient: Amir Cohen
+Date of Birth: 03/07/1972 (Age 51)
+ID: 305812947
+Referring Physician: Dr. Yael Friedman, Internal Medicine
+Department: General Medicine
+
+================================================
+GLYCEMIC CONTROL
+================================================
+
+HbA1c (Glycated Hemoglobin)
+Result: 7.4 %
+Reference Range: < 5.7% (normal), 5.7–6.4% (pre-diabetic), ≥ 6.5% (diabetic)
+Status: HIGH — in diabetic range
+Note: Previous value (June 2023): 6.8%. Trend is worsening. Urgent intervention required.
+
+Fasting Glucose
+Result: 168 mg/dL
+Reference Range: 70 – 100 mg/dL
+Status: HIGH
+
+================================================
+KIDNEY FUNCTION
+================================================
+
+Creatinine
+Result: 1.18 mg/dL
+Reference Range: 0.70 – 1.20 mg/dL
+Status: BORDERLINE HIGH
+
+eGFR (Estimated Glomerular Filtration Rate)
+Result: 68 mL/min/1.73m²
+Reference Range: > 60 (reduced if 15–59, mildly reduced if 60–89, normal ≥ 90)
+Status: MILDLY REDUCED — consistent with CKD Stage G2
+Note: Requires monitoring. Metformin requires dose adjustment if eGFR drops below 45.
+
+================================================
+LIPID PANEL
+================================================
+
+Total Cholesterol
+Result: 228 mg/dL
+Reference Range: < 200 mg/dL
+Status: HIGH
+
+LDL (Low-Density Lipoprotein)
+Result: 148 mg/dL
+Reference Range: < 130 mg/dL
+Status: HIGH
+Note: For diabetic patients the target LDL is < 100 mg/dL. Patient is significantly above this target.
+
+HDL (High-Density Lipoprotein)
+Result: 38 mg/dL
+Reference Range: > 40 mg/dL
+Status: LOW — common in insulin resistance / Type 2 diabetes
+
+Triglycerides
+Result: 245 mg/dL
+Reference Range: < 150 mg/dL
+Status: HIGH — significantly elevated. Commonly associated with poor glycemic control.
+
+================================================
+LIVER FUNCTION
+================================================
+
+ALT (Alanine Aminotransferase)
+Result: 52 U/L
+Reference Range: 7 – 40 U/L
+Status: HIGH — mildly elevated. Possible non-alcoholic fatty liver (NAFLD), common in T2DM.
+
+AST (Aspartate Aminotransferase)
+Result: 41 U/L
+Reference Range: 10 – 40 U/L
+Status: BORDERLINE HIGH
+
+================================================
+VITAMINS AND MINERALS
+================================================
+
+Vitamin D (25-OH Vitamin D)
+Result: 16 ng/mL
+Reference Range: 30 – 100 ng/mL
+Status: LOW — Vitamin D deficiency
+
+Vitamin B12
+Result: 198 pg/mL
+Reference Range: 200 – 900 pg/mL
+Status: BORDERLINE LOW — just below the lower limit of normal
+Note: Metformin (if prescribed) is known to reduce B12 absorption over time. Requires monitoring.
+
+================================================
+INFLAMMATION
+================================================
+
+CRP (C-reactive Protein)
+Result: 8.2 mg/L
+Reference Range: < 5.0 mg/L
+Status: HIGH — elevated inflammatory marker, consistent with metabolic syndrome
+
+================================================
+COMPLETE BLOOD COUNT (CBC)
+================================================
+
+Hemoglobin
+Result: 14.2 g/dL
+Reference Range: 13.5 – 17.5 g/dL
+Status: NORMAL
+
+WBC
+Result: 7.1 × 10³/µL
+Reference Range: 4.0 – 11.0 × 10³/µL
+Status: NORMAL
+
+================================================
+BLOOD PRESSURE (recorded at visit)
+================================================
+
+Blood Pressure: 148 / 92 mmHg
+Status: STAGE 1 HYPERTENSION — requires intervention
+Note: Dr. Friedman discussed blood pressure management. Will monitor at next visit before considering antihypertensive medication.
+
+================================================
+SUMMARY AND PLAN
+================================================
+
+Significant metabolic syndrome picture with new Type 2 Diabetes diagnosis (HbA1c ≥ 6.5%):
+1. HbA1c 7.4% — Type 2 Diabetes confirmed. Starting Metformin 500 mg twice daily.
+2. LDL 148 mg/dL — above diabetic target of <100 mg/dL. Dietary intervention first.
+3. Triglycerides 245 mg/dL — significantly elevated. Diet and omega-3 recommended.
+4. Vitamin D 16 ng/mL — supplement with 4000 IU/day.
+5. B12 borderline (198 pg/mL) — monitor closely given Metformin initiation.
+6. Kidney function mildly reduced — Metformin approved at current eGFR. Monitor quarterly.
+7. Blood pressure 148/92 — lifestyle intervention; recheck in 3 months.
+
+Follow-up: Full panel in 6 months.
+
+Test performed: January 15, 2024
+Signed: Dr. Noa Bar-Lev, Laboratory Director

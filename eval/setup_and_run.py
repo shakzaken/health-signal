@@ -30,7 +30,7 @@ from pathlib import Path
 
 import httpx
 
-EVAL_USER_PASSWORD = "eval-password-2024"
+EVAL_USER_PASSWORD = "Eval-Password-2024"
 
 
 def eval_user_email(test_number: str) -> str:
@@ -96,12 +96,12 @@ def create_new_test() -> Path:
 
 def register_or_login(backend: str, email: str) -> str:
     with httpx.Client(base_url=backend, timeout=30.0) as client:
-        resp = client.post("/auth/register", json={"email": email, "password": EVAL_USER_PASSWORD})
+        resp = client.post("/api/auth/register", json={"email": email, "password": EVAL_USER_PASSWORD})
         if resp.status_code == 201:
             print(f"  Registered eval user: {email}")
             return resp.json()["access_token"]
         if resp.status_code == 409:
-            resp = client.post("/auth/login", json={"email": email, "password": EVAL_USER_PASSWORD})
+            resp = client.post("/api/auth/login", json={"email": email, "password": EVAL_USER_PASSWORD})
             resp.raise_for_status()
             print(f"  Logged in as: {email}")
             return resp.json()["access_token"]
@@ -121,7 +121,7 @@ def delete_existing_documents(backend: str, token: str) -> None:
     """
     headers = {"Authorization": f"Bearer {token}"}
     with httpx.Client(base_url=backend, timeout=30.0) as client:
-        resp = client.get("/documents", headers=headers)
+        resp = client.get("/api/documents", headers=headers)
         resp.raise_for_status()
         docs = resp.json()
         if not docs:
@@ -162,7 +162,7 @@ def upload_demo_files(backend: str, token: str, demo_data_dir: Path) -> list[str
         for path in demo_files:
             with open(path, "rb") as f:
                 resp = client.post(
-                    "/documents/upload",
+                    "/api/documents/upload",
                     headers=headers,
                     files={"file": (path.name, f, "text/plain")},
                     data={},
@@ -182,7 +182,7 @@ def wait_for_processing(backend: str, token: str, doc_ids: list[str]) -> bool:
     start = time.time()
     while time.time() - start < MAX_WAIT:
         with httpx.Client(base_url=backend, timeout=30.0) as client:
-            resp = client.get("/documents", headers=headers)
+            resp = client.get("/api/documents", headers=headers)
             resp.raise_for_status()
             docs = {d["id"]: d for d in resp.json()}
 

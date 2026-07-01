@@ -1,0 +1,137 @@
+Clalit Health Services — Central Laboratory
+Blood Test Results
+
+Date: 08/07/2024
+Patient: Amir Cohen
+Date of Birth: 03/07/1972 (Age 51)
+ID: 305812947
+Referring Physician: Dr. Yael Friedman, Internal Medicine
+Department: General Medicine
+
+================================================
+GLYCEMIC CONTROL
+================================================
+
+HbA1c (Glycated Hemoglobin)
+Result: 6.4 %
+Reference Range: < 5.7% (normal), 5.7–6.4% (pre-diabetic), ≥ 6.5% (diabetic)
+Status: BORDERLINE / HIGH-NORMAL — dropped from diabetic range (7.4%) to pre-diabetic range
+Note: Significant improvement. Patient is responding well to Metformin + lifestyle changes.
+Target: aim for < 6.0% by December.
+
+Fasting Glucose
+Result: 118 mg/dL
+Reference Range: 70 – 100 mg/dL
+Status: HIGH — improved from 168 mg/dL but still above normal
+
+================================================
+KIDNEY FUNCTION
+================================================
+
+Creatinine
+Result: 1.14 mg/dL
+Reference Range: 0.70 – 1.20 mg/dL
+Status: BORDERLINE — stable, minimal change from January
+
+eGFR (Estimated Glomerular Filtration Rate)
+Result: 72 mL/min/1.73m²
+Reference Range: > 60
+Status: MILDLY REDUCED — slight improvement from 68. Continues to be CKD Stage G2.
+Note: Metformin safe to continue at this eGFR level (>45).
+
+================================================
+LIPID PANEL
+================================================
+
+Total Cholesterol
+Result: 201 mg/dL
+Reference Range: < 200 mg/dL
+Status: BORDERLINE HIGH — improved from 228 mg/dL
+
+LDL (Low-Density Lipoprotein)
+Result: 128 mg/dL
+Reference Range: < 130 mg/dL (general), < 100 mg/dL (diabetic target)
+Status: BORDERLINE NORMAL (general range), HIGH (diabetic target)
+Note: LDL improved significantly (148 → 128). Still above diabetic-specific target of <100.
+
+HDL (High-Density Lipoprotein)
+Result: 41 mg/dL
+Reference Range: > 40 mg/dL
+Status: BORDERLINE NORMAL — slight improvement from 38
+
+Triglycerides
+Result: 178 mg/dL
+Reference Range: < 150 mg/dL
+Status: HIGH — improved from 245 but still elevated
+
+================================================
+LIVER FUNCTION
+================================================
+
+ALT (Alanine Aminotransferase)
+Result: 38 U/L
+Reference Range: 7 – 40 U/L
+Status: NORMAL — normalized from 52 U/L in January
+
+AST (Aspartate Aminotransferase)
+Result: 30 U/L
+Reference Range: 10 – 40 U/L
+Status: NORMAL
+
+================================================
+VITAMINS AND MINERALS
+================================================
+
+Vitamin D (25-OH Vitamin D)
+Result: 24 ng/mL
+Reference Range: 30 – 100 ng/mL
+Status: LOW — improved from 16 ng/mL but still below normal
+Note: Continue 4000 IU/day. Recheck December.
+
+Vitamin B12
+Result: 156 pg/mL
+Reference Range: 200 – 900 pg/mL
+Status: LOW — worsened from 198 in January
+Note: IMPORTANT — B12 has dropped further despite no change in dietary habits. This is a
+known side effect of Metformin: long-term use impairs B12 absorption in the small intestine.
+Recommend initiating Vitamin B12 supplementation (sublingual or IM injection).
+Patient should be monitored for symptoms of B12 deficiency: peripheral neuropathy (tingling
+in hands/feet), fatigue, memory issues.
+
+================================================
+INFLAMMATION
+================================================
+
+CRP (C-reactive Protein)
+Result: 4.8 mg/L
+Reference Range: < 5.0 mg/L
+Status: BORDERLINE NORMAL — significant improvement from 8.2 mg/L
+
+================================================
+BLOOD PRESSURE (recorded at visit)
+================================================
+
+Blood Pressure: 134 / 86 mmHg
+Status: ELEVATED — improved from 148/92 but still above normal (< 130/80)
+Note: Dietary sodium restriction and physical activity are helping. Continue monitoring.
+No antihypertensive medication initiated at this time.
+
+================================================
+SUMMARY AND PLAN
+================================================
+
+Good overall response to Metformin and lifestyle intervention:
+Improvements: HbA1c (7.4 → 6.4%), LDL (148 → 128), Triglycerides (245 → 178), ALT normalized, CRP normalized.
+
+Action items:
+1. Metformin dose: increase to 850 mg twice daily to further lower HbA1c to target <6.0%.
+2. B12 DEFICIENCY — initiate Vitamin B12 1000 mcg sublingual daily immediately.
+   Metformin is causing B12 malabsorption. Patient must be monitored for neuropathy symptoms.
+3. Vitamin D still low (24) — continue 4000 IU. Recheck December.
+4. LDL still above diabetic target (<100). Continue dietary changes.
+5. Blood pressure improving — continue lifestyle management.
+
+Follow-up: Full panel in 5 months.
+
+Test performed: July 8, 2024
+Signed: Dr. Noa Bar-Lev, Laboratory Director

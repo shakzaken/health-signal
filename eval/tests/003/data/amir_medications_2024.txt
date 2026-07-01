@@ -1,0 +1,82 @@
+Medication and Supplement Log — Amir Cohen — 2024
+==================================================
+
+Started after Type 2 Diabetes diagnosis confirmed by blood test on 15/01/2024 (HbA1c 7.4%).
+
+---
+
+METFORMIN (Glucophage)
+Type: Prescription medication
+Dose: 500 mg twice daily (initial)
+Form: tablet — taken with food to reduce GI side effects
+Prescribed by: Dr. Yael Friedman, Internal Medicine
+Started: January 20, 2024
+Reason: Type 2 Diabetes — HbA1c 7.4% at diagnosis. First-line medication for T2DM.
+GI side effects on initiation: nausea, abdominal discomfort, loose stools for approximately 2 weeks.
+Resolved by taking tablet mid-meal.
+
+Dose increased to 850 mg twice daily on: March 10, 2024
+Reason for increase: HbA1c response required further lowering toward target of < 6.5%.
+GI tolerance: acceptable after 3–4 weeks of adjustment.
+
+Important note: Metformin is known to impair Vitamin B12 absorption in the terminal ileum with
+long-term use. Patient B12 monitored at every blood test. July 2024 confirmed B12 depletion
+(156 pg/mL, LOW). Vitamin B12 supplementation initiated as a result.
+
+Current status: Ongoing as of December 2024 (850 mg twice daily).
+Dr. Friedman indicated potential dose reduction discussion at next visit given HbA1c 5.9%.
+
+---
+
+VITAMIN D3 (cholecalciferol)
+Type: Supplement — prescribed
+Dose: 4000 IU per day
+Form: softgel capsule
+Prescribed by: Dr. Yael Friedman
+Started: January 25, 2024
+Reason: Blood test showed Vitamin D at 16 ng/mL (ref 30–100). Deficiency.
+Note: Trend — 16 ng/mL (January) → 24 ng/mL (July) → 32 ng/mL (December). Normalized by December.
+Current status: Ongoing as of December 2024
+
+---
+
+OMEGA-3 FISH OIL
+Type: Supplement — self-initiated
+Dose: 2000 mg per day (EPA/DHA combined)
+Form: softgel capsule
+Brand: Nordic Naturals Ultimate Omega
+Started: February 15, 2024
+Reason: Self-initiated after reading about Omega-3 for triglyceride reduction. Triglycerides at
+diagnosis were 245 mg/dL (ref < 150). Dr. Friedman was informed and had no objection.
+Note: Triglyceride trend — 245 (January) → 178 (July) → 142 (December). Normalized.
+Contribution vs. dietary changes uncertain.
+Current status: Ongoing as of December 2024
+
+---
+
+VITAMIN B12 (methylcobalamin — sublingual)
+Type: Supplement — prescribed
+Dose: 1000 mcg per day
+Form: sublingual tablet (dissolves under tongue — bypasses GI absorption to avoid Metformin interference)
+Prescribed by: Dr. Yael Friedman
+Started: July 15, 2024
+Reason: July blood test showed B12 at 156 pg/mL (ref 200–900) — LOW. Metformin-induced B12
+depletion confirmed. Sublingual formulation specifically chosen to bypass the intestinal
+absorption pathway blocked by Metformin.
+Note: B12 improved from 156 (July) to 312 (December) after 5 months of supplementation.
+Patient reported improvement in peripheral tingling symptoms in feet (possible early neuropathy)
+following B12 initiation.
+Current status: Ongoing as of December 2024. Must continue as long as Metformin is used.
+
+---
+
+SUMMARY TABLE
+=============
+Medication/Supplement  | Start Date    | End Date  | Dose                  | Type        | Status
+-----------------------|---------------|-----------|------------------------|-------------|----------
+Metformin              | Jan 20, 2024  | Ongoing   | 850 mg x2/day*         | Prescription| Active
+Vitamin D3             | Jan 25, 2024  | Ongoing   | 4000 IU/day            | Rx Supplement| Active
+Omega-3 Fish Oil       | Feb 15, 2024  | Ongoing   | 2000 mg/day            | Self-initiated| Active
+Vitamin B12 sublingual | Jul 15, 2024  | Ongoing   | 1000 mcg/day           | Rx Supplement| Active
+
+*Metformin dose increased from 500 mg to 850 mg (twice daily) on March 10, 2024.
