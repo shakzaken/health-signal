@@ -43,7 +43,7 @@ async def list_users(
     user_repo = UserRepository(session)
     usage_repo = UsageEventRepository(session)
 
-    users = await user_repo.list_all()
+    users = await user_repo.list_all(exclude_test_users=False)
     return [
         AdminUserResponse(
             id=u.id,
