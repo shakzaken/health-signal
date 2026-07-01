@@ -16,7 +16,7 @@
 | 6 | Auth & Google OAuth testing (production) | ✅ Done |
 | 7 | PostgreSQL and Qdrant auth | ✅ Done |
 | 8 | Session expiry reload-loop fix | ✅ Done |
-| 9 | Rate limiting / brute-force & spam protection | 🔲 In progress — Layer 0 (origin firewall) done, Layer 1 (Cloudflare rule) and Layer 2 deploy remaining |
+| 9 | Rate limiting / brute-force & spam protection | ✅ Done — verified in production (query/upload rate limiting deferred as a follow-up) |
 | 10 | SSH access hardening | 🔲 Planning only — for later |
 
 ---
@@ -378,7 +378,7 @@ Blocks abusive traffic before it ever reaches nginx/backend — cheapest and mos
 
 **Layer 1 — Cloudflare Rate Limiting Rule ✅**
 
-Found during setup: Cloudflare's Free plan only allows **1 rate limiting rule total** (not per-path), and both the counting **period and block duration are fixed at 10 seconds** — no custom 1 min / 1 hour windows or longer blocks like Business/Enterprise gets. This changes Cloudflare's role from "the real throttle" to a **flood brake**: it only catches very fast, aggressive bursts, and unblocks quickly. The actual precise enforcement (5r/m login, 1r/m register) is done by nginx (Layer 2), which has no such plan-tier restriction.
+Found during setup: Cloudflare's Free plan only allows **1 rate limiting rule total** (not per-path), and both the counting **period and block duration are fixed at 10 seconds** — no custom 1 min / 1 hour windows or longer blocks like Business/Enterprise gets. This changes Cloudflare's role from "the real throttle" to a **flood brake**: it only catches very fast, aggressive bursts, and unblocks quickly. The actual precise enforcement (5r/m login/google, 3r/m register/resend) is done by nginx (Layer 2), which has no such plan-tier restriction.
 
 - [x] Confirmed Free plan allowance: 1 rule, fixed 10s period, fixed 10s block duration (not configurable)
 - [x] Created the single rule, matching all 4 auth paths with OR, rate 3 requests / 10 seconds per IP → Block 10 seconds:
@@ -389,18 +389,22 @@ Found during setup: Cloudflare's Free plan only allows **1 rate limiting rule to
   (http.request.uri.path eq "/api/auth/google/verify")
   ```
 - [x] Decided **not** to bundle `/api/ai/query` or `/api/documents/upload` into this same rule — a single rule shares one threshold across everything it matches, and active chat usage can easily exceed 3 requests/10s legitimately (quick back-and-forth, streaming). Bundling would risk throttling real users, not just attackers. See "query/upload rate limiting" follow-up below instead.
-- [ ] Confirm Uptime Robot / health checks aren't affected (low risk — it only hits `/`, not `/api/auth/*`)
+- [x] Confirmed Uptime Robot / health checks aren't affected — see verification note in Layer 2 below
 
 **Follow-up (separate from this phase) — query/upload rate limiting**
 - [ ] Add a separate nginx `limit_req` zone (not Cloudflare, which has no rule slots left) for `/api/ai/query` and `/api/documents/upload`, with a much more generous rate (~20-30/min) than the auth zones — protects against scripted abuse without capping normal chat usage. Not yet scoped in detail; revisit if usage patterns actually show abuse.
 
-**Layer 2 — nginx `limit_req` ✅ (code complete, tested locally)**
+**Layer 2 — nginx `limit_req` ✅ (deployed and verified in production)**
 - [x] Added `real_ip_header` / `set_real_ip_from` (Cloudflare IP ranges) to `nginx/nginx.conf`
 - [x] Added `limit_req_zone` + `limit_req` scoped to the 4 auth routes in both `nginx/nginx.conf` (production) and `nginx/nginx.local.conf` (local dev — was stale/pre-`/api`-migration, brought up to date as part of this work)
-- [x] Fixed an invalid rate unit caught during local testing: nginx only supports `r/s`/`r/m`, not `r/h` — `3r/h` would have crashed nginx on deploy; changed to `1r/m` for register/resend as the closest nginx-side approximation (the real ~3/hour precision is enforced by the Cloudflare rule instead)
+- [x] Fixed an invalid rate unit caught during local testing: nginx only supports `r/s`/`r/m`, not `r/h` — `3r/h` would have crashed nginx on deploy; changed to `3r/m` for register/resend (valid syntax, closest practical nginx-side approximation — the real ~3/hour precision is enforced by the Cloudflare rule instead)
 - [x] Frontend: handles `429` on login/register/resend-verification/google-login with a clear "Too many attempts. Please wait a moment and try again." message (`AuthContext.tsx`) — verified `resendVerification`'s existing silent-catch (anti-enumeration) behavior is unaffected/still correct
 - [x] Tested locally via `docker compose`: login burst (rate 5/min, burst 3) → first 4 requests reach backend normally (`401`), then `429`; register burst (rate 1/min, burst 2) → first 3 requests succeed (`201`), then `429` — confirms legitimate single-request usage isn't falsely throttled
-- [ ] Deploy to production and retest the same burst pattern against the live domain (not yet done — changes are uncommitted in the working tree; user handles all git commit/push actions)
+- [x] Hardened `.github/workflows/deploy.yml` — pinned all `docker compose` invocations to `-f docker-compose.yml` so the local-only `docker-compose.override.yml` (gitignored, stale HTTP-only nginx config) can never get silently auto-merged into a production deploy
+- [x] Deployed to production and retested against the live domain: burst of 8 requests → first 3 succeeded (`401`, reached backend normally), then `429` from request 4 onward; an immediate second burst returned `429` on all 8 — confirming the block is sustained, not a one-off. Full layered defense (origin firewall + Cloudflare rule + nginx) verified working end-to-end in production
+- [x] Uptime Robot unaffected — rate-limit locations are exact-match on `/api/auth/*` only, structurally separate from `/` which Uptime Robot polls
+
+**Phase 9 status: all three layers implemented and verified in production. Only the query/upload follow-up (below) remains open.**
 
 ---
 

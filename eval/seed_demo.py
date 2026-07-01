@@ -39,7 +39,7 @@ def get_token(backend: str) -> str:
     """Register or login the demo user and return a JWT."""
     with httpx.Client(base_url=backend, timeout=15.0) as client:
         # Try register first
-        resp = client.post("/auth/register", json={
+        resp = client.post("/api/auth/register", json={
             "email": DEMO_EMAIL,
             "password": DEMO_PASSWORD,
         })
@@ -49,7 +49,7 @@ def get_token(backend: str) -> str:
 
         if resp.status_code == 409:
             # Already exists — login instead
-            resp = client.post("/auth/login", json={
+            resp = client.post("/api/auth/login", json={
                 "email": DEMO_EMAIL,
                 "password": DEMO_PASSWORD,
             })
@@ -85,7 +85,7 @@ def upload_document(
     mime = "application/pdf" if filename.endswith(".pdf") else "text/plain"
 
     resp = client.post(
-        "/documents/upload",
+        "/api/documents/upload",
         files={"file": (filename, content, mime)},
         data={"document_type": document_type, "source_date": source_date},
         headers={"Authorization": f"Bearer {token}"},
@@ -115,7 +115,7 @@ def wait_for_completion(
     deadline = time.time() + timeout
     while time.time() < deadline:
         resp = client.get(
-            f"/documents/{doc_id}",
+            f"/api/documents/{doc_id}",
             headers={"Authorization": f"Bearer {token}"},
             timeout=10.0,
         )

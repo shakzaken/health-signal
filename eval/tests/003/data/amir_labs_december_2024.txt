@@ -1,0 +1,136 @@
+Clalit Health Services — Central Laboratory
+Blood Test Results
+
+Date: 03/12/2024
+Patient: Amir Cohen
+Date of Birth: 03/07/1972 (Age 51)
+ID: 305812947
+Referring Physician: Dr. Yael Friedman, Internal Medicine
+Department: General Medicine
+
+================================================
+GLYCEMIC CONTROL
+================================================
+
+HbA1c (Glycated Hemoglobin)
+Result: 5.9 %
+Reference Range: < 5.7% (normal), 5.7–6.4% (pre-diabetic), ≥ 6.5% (diabetic)
+Status: BORDERLINE NORMAL — below the diabetic threshold for the first time
+Note: Trend: 7.4% (January) → 6.4% (July) → 5.9% (December). Outstanding progress.
+Discuss with patient whether to cautiously trial Metformin dose reduction given sustained improvement.
+
+Fasting Glucose
+Result: 98 mg/dL
+Reference Range: 70 – 100 mg/dL
+Status: NORMAL — first time in normal range during 2024
+
+================================================
+KIDNEY FUNCTION
+================================================
+
+Creatinine
+Result: 1.10 mg/dL
+Reference Range: 0.70 – 1.20 mg/dL
+Status: NORMAL
+
+eGFR (Estimated Glomerular Filtration Rate)
+Result: 78 mL/min/1.73m²
+Reference Range: > 60 (normal ≥ 90)
+Status: MILDLY REDUCED — consistent improvement (68 → 72 → 78).
+Note: Trend is positive. Still classified as CKD Stage G2. Annual monitoring recommended.
+
+================================================
+LIPID PANEL
+================================================
+
+Total Cholesterol
+Result: 188 mg/dL
+Reference Range: < 200 mg/dL
+Status: NORMAL — excellent improvement from 228 mg/dL in January
+
+LDL (Low-Density Lipoprotein)
+Result: 112 mg/dL
+Reference Range: < 130 mg/dL (general), < 100 mg/dL (diabetic target)
+Status: NORMAL (general range) — above diabetic-specific target of <100 mg/dL
+Note: LDL fully normalized against general reference. Still above the more stringent diabetic
+target. Dietary optimization should continue; statin therapy to be considered if LDL
+remains above 100 mg/dL at next annual review.
+
+HDL (High-Density Lipoprotein)
+Result: 46 mg/dL
+Reference Range: > 40 mg/dL
+Status: NORMAL — continued improvement (38 → 41 → 46 across 2024)
+
+Triglycerides
+Result: 142 mg/dL
+Reference Range: < 150 mg/dL
+Status: NORMAL — normalized (245 → 178 → 142)
+
+================================================
+LIVER FUNCTION
+================================================
+
+ALT (Alanine Aminotransferase)
+Result: 29 U/L
+Reference Range: 7 – 40 U/L
+Status: NORMAL
+
+AST (Aspartate Aminotransferase)
+Result: 24 U/L
+Reference Range: 10 – 40 U/L
+Status: NORMAL
+
+================================================
+VITAMINS AND MINERALS
+================================================
+
+Vitamin D (25-OH Vitamin D)
+Result: 32 ng/mL
+Reference Range: 30 – 100 ng/mL
+Status: NORMAL — just above the lower threshold. First time in range this year.
+
+Vitamin B12
+Result: 312 pg/mL
+Reference Range: 200 – 900 pg/mL
+Status: NORMAL — significant improvement from 156 pg/mL in July following B12 supplementation.
+Note: Recovery from Metformin-induced B12 depletion confirmed. Continue monitoring annually.
+Patient should maintain B12 supplementation as long as Metformin is used.
+
+================================================
+INFLAMMATION
+================================================
+
+CRP (C-reactive Protein)
+Result: 2.1 mg/L
+Reference Range: < 5.0 mg/L
+Status: NORMAL — sustained improvement (8.2 → 4.8 → 2.1)
+
+================================================
+BLOOD PRESSURE (recorded at visit)
+================================================
+
+Blood Pressure: 126 / 82 mmHg
+Status: NORMAL — within target range for the first time this year
+Note: Excellent response to lifestyle intervention. No medication required.
+
+================================================
+SUMMARY AND PLAN
+================================================
+
+Exceptional progress across all domains in 2024. Key achievements:
+1. HbA1c: 7.4% (diabetic) → 5.9% (near-normal) — without insulin or additional medication
+2. Fasting Glucose: 168 → 98 mg/dL — fully normalized
+3. B12: 198 → 156 (worsened) → 312 (recovered after supplementation)
+4. Triglycerides: 245 → 142 mg/dL — normalized
+5. CRP: 8.2 → 2.1 mg/L — inflammation resolved
+6. Blood pressure: 148/92 → 126/82 — normalized without medication
+
+Still to monitor:
+- eGFR still mildly reduced (78) — not in optimal range (≥90). Annual monitoring.
+- LDL 112 — above diabetic-specific target of <100. Continue diet optimization.
+
+Recommendation: Discuss Metformin dose reduction at next visit given sustained HbA1c normalization.
+Continue Vitamin D and B12 supplementation indefinitely while on Metformin.
+
+Test performed: December 3, 2024
+Signed: Dr. Noa Bar-Lev, Laboratory Director

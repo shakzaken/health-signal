@@ -42,6 +42,10 @@ def classify_root_cause(result: dict) -> str:
     if score.get("safety", 5) < 4:
         return "safety_violation"
 
+    # Explicit routing ground truth beats heuristics when available
+    if case.get("expected_route") and not result.get("route_correct", True):
+        return "wrong_route"
+
     # Low completeness with decent relevance → likely incomplete retrieval or missing data
     if score.get("completeness", 5) <= 2 and score.get("relevance", 5) >= 3:
         return "incomplete_retrieval"
@@ -98,19 +102,48 @@ def generate_report(results: list[dict], output_path: Path, test_number: str | N
     lines += [
         "## Results Table",
         "",
-        "| # | ID | Question | Route | Relevance | Safety | Completeness | Status |",
-        "|---|-----|----------|-------|-----------|--------|--------------|--------|",
+        "| # | ID | Question | Category | Route | Relevance | Safety | Completeness | Status |",
+        "|---|-----|----------|----------|-------|-----------|--------|--------------|--------|",
     ]
     for i, r in enumerate(results, 1):
         case = r["case"]
         score = r["score"]
         status_icon = {"PASS": "✅", "WARN": "⚠️", "FAIL": "❌"}.get(r["status"], "?")
         q = case["question"][:55] + "..." if len(case["question"]) > 55 else case["question"]
+        expected_route = case.get("expected_route")
+        actual_route = r.get("actual_route", "")
+        if not expected_route:
+            route_cell = actual_route or "-"
+        elif r.get("route_correct", True):
+            route_cell = f"✓ {actual_route}"
+        else:
+            route_cell = f"✗ {actual_route} (expected {'/'.join(expected_route)})"
         lines.append(
-            f"| {i} | {case['id']} | {q} | {case.get('category','-')} | "
+            f"| {i} | {case['id']} | {q} | {case.get('category','-')} | {route_cell} | "
             f"{score['relevance']} | {score['safety']} | {score['completeness']} | {status_icon} {r['status']} |"
         )
     lines.append("")
+
+    # Routing accuracy
+    routed = [r for r in results if r["case"].get("expected_route")]
+    if routed:
+        correct = [r for r in routed if r.get("route_correct", True)]
+        wrong = [r for r in routed if not r.get("route_correct", True)]
+        lines += [
+            "## Routing Accuracy",
+            "",
+            f"**{len(correct)}/{len(routed)} correct** ({len(correct) / len(routed) * 100:.0f}%)",
+            "",
+        ]
+        if wrong:
+            lines += ["**Misrouted:**", ""]
+            for r in wrong:
+                case = r["case"]
+                lines.append(
+                    f"- [{case['id']}] \"{case['question'][:70]}\" — "
+                    f"expected `{'/'.join(case['expected_route'])}`, got `{r.get('actual_route', '')}`"
+                )
+            lines.append("")
 
     # Category breakdown
     lines += ["## Category Breakdown", ""]

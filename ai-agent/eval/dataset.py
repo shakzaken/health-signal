@@ -24,6 +24,10 @@ class EvalCase:
     expected_keywords: list[str]  # words/phrases that should appear in a good answer
     forbidden_phrases: list[str]  # phrases that MUST NOT appear (diagnostic language)
     notes: str                  # what a good answer looks like (used as rubric context for judge)
+    expected_route: list[str] = field(default_factory=list)
+    # Which supervisor route(s) are acceptable for this question, e.g. ["lab_analysis"].
+    # More than one entry means either route is acceptable (genuinely ambiguous case).
+    # Empty means routing isn't checked for this case (older datasets predate this field).
 
 
 EVAL_CASES: list[EvalCase] = [
@@ -315,6 +319,7 @@ def load_cases_from_json(path: str) -> list[EvalCase]:
             expected_keywords=c["expected_keywords"],
             forbidden_phrases=c["forbidden_phrases"],
             notes=c["notes"],
+            expected_route=c.get("expected_route", []),
         )
         for c in data
     ]

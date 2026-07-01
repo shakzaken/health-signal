@@ -343,6 +343,7 @@ class Supervisor:
         return {
             "answer": answer,
             "sources": final_state["sources"],
+            "route": final_state["route"],
         }
 
     async def run_stream(

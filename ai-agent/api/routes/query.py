@@ -28,6 +28,7 @@ class SourceChunk(BaseModel):
 class QueryResponse(BaseModel):
     answer: str
     sources: list[SourceChunk]
+    route: str
 
 
 @router.post("/stream")
@@ -72,4 +73,5 @@ async def query_documents(
     return QueryResponse(
         answer=result["answer"],
         sources=[SourceChunk(**s) for s in result["sources"]],
+        route=result["route"],
     )
