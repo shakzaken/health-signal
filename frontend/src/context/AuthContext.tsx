@@ -1,6 +1,8 @@
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react'
 import { registerSessionExpiredHandler } from '../api/sessionEvents'
 
+const RATE_LIMIT_MESSAGE = 'Too many attempts. Please wait a moment and try again.'
+
 function extractDetail(data: Record<string, unknown>, fallback: string): string {
   const detail = data.detail
   if (!detail) return fallback
@@ -51,6 +53,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
     })
+    if (res.status === 429) throw new Error(RATE_LIMIT_MESSAGE)
     if (!res.ok) {
       const data = await res.json().catch(() => ({}))
       throw new Error(extractDetail(data, 'Login failed'))
@@ -65,6 +68,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
     })
+    if (res.status === 429) throw new Error(RATE_LIMIT_MESSAGE)
     if (!res.ok) {
       const data = await res.json().catch(() => ({}))
       throw new Error(extractDetail(data, 'Registration failed'))
@@ -90,6 +94,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ credential }),
     })
+    if (res.status === 429) throw new Error(RATE_LIMIT_MESSAGE)
     if (!res.ok) {
       const data = await res.json().catch(() => ({}))
       throw new Error(extractDetail(data, 'Google login failed'))
@@ -118,6 +123,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email }),
     })
+    if (res.status === 429) throw new Error(RATE_LIMIT_MESSAGE)
     if (!res.ok) {
       const data = await res.json().catch(() => ({}))
       throw new Error(extractDetail(data, 'Failed to resend verification email'))
